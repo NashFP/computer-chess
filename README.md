@@ -2,7 +2,7 @@
 A functional programming playground for computer chess
 
 ##Background
-On Monday, March 23, 2015 at 7PM the movie "[Computer Chess](http://www.belcourt.org/events/computer-chess.653869)" will play at the Belcourt Theatre as part of their series "Science on Screen: Connecting Cinematic Art with Hard Science."
+On Monday, March 23, 2015 at 7PM the movie "[Computer Chess](http://www.belcourt.org/events/computer-chess.653869)" will play at Nashville's historic [Belcourt Theater](http://www.belcourt.org/) as part of their "[Science on Screen](http://www.belcourt.org/events/science-on-screen-connecting-cinematic-art-with-hard-science.1380736)" series.
 
 >"Set in 1980 in a nondescript hotel, COMPUTER CHESS follows several young geniuses as they try to make the ultimate chess program to beat a human player."
 
