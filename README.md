@@ -19,3 +19,14 @@ Writing a chess game (_or a portion of a chess game_) in your functional languag
 5. Bask in eternal glory
 
 Game on!
+
+##Helpful links
+
+Amber Adams (@amberadams) pointed out two very helpful resources  
+> Here are the five major problems you'll need to solve in your program:
+> http://www.gamedev.net/page/resources/_/technical/artificial-intelligence/chess-programming-part-i-getting-started-r1014
+>
+> And here's the community wiki, for some additional resources and things not to do if you want your program to be respected: https://chessprogramming.wikispaces.com
+> 
+
+Nice!
