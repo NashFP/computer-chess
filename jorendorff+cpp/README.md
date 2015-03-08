@@ -1,11 +1,15 @@
 # Microchess in C++
 
-This directory contains a port of Microchess, a simple chess-playing
-program originally written for the 6502 microprocessor.
+This directory contains a C++ port of Microchess,
+a simple chess-playing program originally written for the
+[KIM-1](http://www.6502.org/trainers/buildkim/kim.htm),
+the first computer developed by Commodore.
+The program is therefore in 6502 assembler.
 
-Not exactly functional! But I'll make up for that later. In any case,
-all our chess-playing programs need something to play against. So
-consider this a benchmark.
+Not exactly a functional programming language!
+But I'll make up for that later.
+In any case, all our chess-playing programs need something to play against.
+So consider this a benchmark.
 
 
 ## How to play
