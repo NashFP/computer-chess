@@ -55,6 +55,47 @@
 #  define GO_KEY 'G'
 #endif
 
+
+/*** Board representation ****************************************************/
+
+#define CAPTURED ((uint8_t) 0xcc)
+
+static uint8_t board[32];
+#define bk (board + 16)
+
+/*
+ * Initial positions of all the pieces.
+ */
+const uint8_t setw[32] = {
+    // White pieces: K Q R R B B N N
+    0x03, 0x04, 0x00, 0x07, 0x02, 0x05, 0x01, 0x06,
+
+    // White pawns.
+    // Since the AI considers all the moves of each piece in turn, I think this
+    // ordering of the pawns causes the computer to move the innermost pawns
+    // when several pawn moves seem equally good.
+    0x10, 0x17, 0x11, 0x16, 0x12, 0x15, 0x14, 0x13,
+
+    // Black pieces and pawns.
+    0x73, 0x74, 0x70, 0x77, 0x72, 0x75, 0x71, 0x76,
+    0x60, 0x67, 0x61, 0x66, 0x62, 0x65, 0x64, 0x63
+};
+
+/*
+ *      EXCHANGE SIDES FOR REPLY
+ *      ANALYSIS
+ */
+static void reverse() {
+    int x = 15;
+    do {
+        // SUBTRACT POSITION FROM 77 AND EXCHANGE PIECES
+        uint8_t tmp = bk[x];
+        bk[x] = 0x77 - board[x];
+        board[x] = 0x77 - tmp;
+    } while (--x >= 0);
+}
+
+
 #define S_ILLEGAL 1
 #define S_CAPTURE 2
 #define S_ILLCHK 4
@@ -71,7 +112,6 @@ static void gnmx(int x);
 static void gnm();
 static bool sngmv();
 static bool line();
-static void reverse();
 static int cmove();
 static int spx(int s);
 static void reset();
@@ -103,10 +143,6 @@ struct Move {
     uint8_t m_dest;         // where m_piece was moved to
 };
 
-#define CAPTURED ((uint8_t) 0xcc)
-
-static uint8_t board[32];
-#define bk (board + 16)
 static int8_t piece;
 static uint8_t square;
 static int8_t inchek;
@@ -449,20 +485,6 @@ bool line() {
 }
 
 /*
- *      EXCHANGE SIDES FOR REPLY
- *      ANALYSIS
- */
-void reverse() {
-    int x = 15;
-    do {
-        // SUBTRACT POSITION FROM 77 AND EXCHANGE PIECES
-        uint8_t tmp = bk[x];
-        bk[x] = 0x77 - board[x];
-        board[x] = 0x77 - tmp;
-    } while (--x >= 0);
-}
-
-/*
  *      CMOVE CALCULATES THE TO SQUARE
  *      USING SQUARE AND THE MOVE
  *      TABLE,  FLAGS SET AS FOLLOWS:
@@ -739,22 +761,6 @@ const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
 /*
  * end of added code
  */
-
-// Initial positions of all the pieces.
-const uint8_t setw[32] = {
-    // White pieces: K Q R R B B N N
-    0x03, 0x04, 0x00, 0x07, 0x02, 0x05, 0x01, 0x06,
-
-    // White pawns.
-    // Since the AI considers all the moves of each piece in turn, I think this
-    // ordering of the pawns causes the computer to move the innermost pawns
-    // when several pawn moves seem equally good.
-    0x10, 0x17, 0x11, 0x16, 0x12, 0x15, 0x14, 0x13,
-
-    // Black pieces and pawns.
-    0x73, 0x74, 0x70, 0x77, 0x72, 0x75, 0x71, 0x76,
-    0x60, 0x67, 0x61, 0x66, 0x62, 0x65, 0x64, 0x63
-};
 
 const uint8_t movex[17] = {
     0x00, 0xf0, 0xff, 0x01, 0x10, 0x11, 0x0f, 0xef, 0xf1,
