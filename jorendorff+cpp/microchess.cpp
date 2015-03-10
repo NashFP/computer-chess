@@ -66,7 +66,7 @@ static uint8_t board[32];
 /*
  * Initial positions of all the pieces.
  */
-const uint8_t setw[32] = {
+static const uint8_t setw[32] = {
     // White pieces: K Q R R B B N N
     0x03, 0x04, 0x00, 0x07, 0x02, 0x05, 0x01, 0x06,
 
@@ -627,7 +627,7 @@ static uint8_t omove;
  * The last move here, bxc3, is not necessarily better than d5.
  *
  */
-const uint8_t opning[28] = {
+static const uint8_t opning[28] = {
     0x99, 0x25, 0x0b,  // 9. bxc3
     0x25, 0x01, 0x00,  // 8. o-o Bxc3 (or Nxc3)
     0x33, 0x25, 0x07,  // 7. Nc3 Nxe4
@@ -701,7 +701,7 @@ static bool rev = false;
  * exit Microchess by hitting Ctrl+C, your terminal will be screwed up. Fix it
  * with the command `stty sane`.
  */
-void change_terminal(bool raw) {
+static void change_terminal(bool raw) {
 #ifdef HAVE_TERMIOS
     if (!isatty(STDIN_FILENO))
         return;
