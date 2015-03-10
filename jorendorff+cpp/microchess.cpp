@@ -166,8 +166,10 @@ static void umove() {
 
 /*** Move generation *********************************************************/
 
-static int8_t inchek;
+#define ST_CHKCHK  (-7)
+
 static int8_t state;
+static bool inchek;
 
 static const uint8_t movex[17] = {
     0x00, 0xf0, 0xff, 0x01, 0x10, 0x11, 0x0f, 0xef, 0xf1,
@@ -324,15 +326,15 @@ static int spx(int s) {
     //      ALWAYS DONE
     //
     int8_t saved = state;
-    state = -7;
-    inchek = -7;
+    state = ST_CHKCHK;
+    inchek = false;
     move();
     reverse();
     gnm();
     reverse();
     umove();
     state = saved;
-    if (inchek < 0)
+    if (!inchek)
         return s;                           // NO - SAFE
     return S_ILLEGAL | S_ILLCHK;            // YES - IN CHK
 }
@@ -508,7 +510,7 @@ void on4() {
 
 void nocount(int s) {
     assert(s == 0 || s == S_CAPTURE);
-    if (state != -7) {
+    if (state != ST_CHKCHK) {
         tree(s);
     } else {
         //
@@ -516,7 +518,7 @@ void nocount(int s) {
         // TAKEN, USED BY CHKCHK
         //
         if (bk[0] == square)                // IS KING IN CHECK?
-            inchek = 0;                     // SET INCHEK=0 IF IT IS
+            inchek = true;                  // SET INCHEK=0 IF IT IS
     }
 }
 
