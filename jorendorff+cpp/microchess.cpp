@@ -582,7 +582,8 @@ static void janus(int s) {
 }
 
 
-static int chess();
+/*** Chess AI entry points and scripted opening ******************************/
+
 static void change_terminal(bool raw);
 
 #define dis1 bestp
@@ -596,7 +597,8 @@ static uint8_t omove;
  * It's read by go(), and (like everything else in the program) the array is
  * read backwards.  A global variable 'omove' indexes into this array.
  *
- * The 0xcc at opning[27] refers to the initial state of the "black's last move" variable.
+ * The 0xcc at opning[27] refers to the initial state of the "black's last
+ * move" variable.
  *
  * Each row, reading from right to left, has:
  * - a number from 0x00 to 0x0f telling which piece white is moving;
@@ -643,12 +645,11 @@ static int mv2() {
     piece = bestp;                          // MOVE
     square = bestm;                         // AND DISPLAY
     move();                                 // IT
-    return chess();
+    return 0;
 }
 
 static int mate() {
-    change_terminal(false);
-    exit(1);                                // RESIGN OR STALEMATE
+    return -1;                              // RESIGN OR STALEMATE
 }
 
 /*
@@ -676,143 +677,9 @@ static int go() {
 }
 
 
-/* * */
+/*** I/O *********************************************************************/
 
-static void input(int a);
-static void disp();
-static void dismv(int8_t a);
-static void pout();
-static int kin();
-
-extern const char *cpl;
-extern const char *cph;
-extern const uint8_t setw[32];
-
-static uint8_t rev;
-
-int chess() {
-    for (;;) {
-        sp2 = stack + STACK_SIZE;
-        pout();                             // DISPLAY AND
-        int c = kin();                      // GET INPUT KEY IN ACC
-        if (c == 'C') {
-            memcpy(board, setw, 32);        // SET UP BOARD
-            omove = 27;
-            c = 0xcc;
-        } else if (c == 'E') {
-            reverse();                      // REVERSE BOARD IS
-            rev = 1 - rev;                  // TOGGLE REV FLAG
-            c = 0xee;                       // IS
-        } else if (c == 0x40) {             // [P]
-            // Seems to be a bug. GO sometimes jumps back to CHESS
-            // instead of returning. Why doesn't this overflow the stack?
-            c = go();
-        } else if (c == GO_KEY) {
-            move();
-            disp();
-            continue;
-        } else if (c == 0x41) {             // [Q] ***Added to allow game exit***
-            putchar('\n');
-            change_terminal(false);
-            exit(0);
-        } else if (c == '\n') {
-            // do nothing --jto
-            continue;
-        } else {
-            input(c);
-            continue;
-        }
-        dis1 = c;                           // DISPLAY
-        dis2 = c;                           // ACROSS
-        dis3 = c;                           // DISPLAY
-    }
-}
-
-/*
- *      THE PLAYER'S MOVE IS INPUT
- */
-void input(int c) {
-    if (c < 8) {                           // A LEGAL SQUARE #
-        dismv(c);
-        disp();
-    }
-}
-
-void disp() {
-    int8_t x = 31;
-    while (board[x] != dis2 && --x >= 0) {} // DISPLAY PIECE AT FROM
-    dis1 = x;                               // SQUARE
-    piece = x;
-}
-
-/*
- *      SUBROUTINE TO ENTER THE
- *      PLAYER'S MOVE
- */
-void dismv(int8_t a) {
-    dis2 = (dis2 << 4) | (dis3 >> 4);       // ROTATE KEY
-    dis3 = (dis3 << 4) | a;                 // INTO DISPLAY
-    square = dis3;
-}
-
-/*
- * The following routines were added to allow text-based board
- * display over a standard RS-232 port.
- */
-void pout() {
-    putchar('\n');
-    puts("MicroChess (c) 1996-2005 Peter Jennings, www.benlo.com");
-    puts(" 00 01 02 03 04 05 06 07");
-    int y = 0;
-    puts("-------------------------");
-
-    for (;;) {
-        putchar('|');
-        int x;
-        for (x = 31; x >= 0; x--) {
-            if (y == board[x])
-                break;
-        }
-
-        if (x < 0) {                        // empty square
-            char ch = (((y & 1) + ((y >> 4) & 1)) & 1) ? '*' : ' ';
-            putchar(ch);
-            putchar(ch);
-        } else {
-            putchar(rev ? cpl[x + 16] : cpl[x]);  // print piece's color & type
-            putchar(cph[x]);
-        }
-
-        y++;
-        if (y & 8) {                        // have we completed the row?
-            printf("|%02X\n", (unsigned) (y & 0x70));  //jto: looks like a bug!
-            puts("-------------------------");
-            y += 8;                         // point y to beginning of next row
-            if (y == 0x80)                  // was that the last row?
-                break;                      // yes, print the LED values
-        }
-    }
-
-    puts(" 00 01 02 03 04 05 06 07");
-    printf("%02X %02X %02X\n",
-           (unsigned) (uint8_t) bestp,
-           (unsigned) (uint8_t) bestv,
-           (unsigned) (uint8_t) bestm);
-}
-
-int kin() {
-    putchar('?');
-    int c = getchar();
-    return c == EOF ? EOF : c & 0x4f;
-}
-
-const char *cpl = "WWWWWWWWWWWWWWWWBBBBBBBBBBBBBBBBWWWWWWWWWWWWWWWW";
-const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
-
-/*
- * end of added code
- */
-
+static bool rev = false;
 
 /*
  * Turn the terminal's raw mode on or off.
@@ -855,6 +722,126 @@ void change_terminal(bool raw) {
     }
 #endif
 }
+
+static int kin() {
+    putchar('?');
+    int c = getchar();
+    return c == EOF ? EOF : c & 0x4f;
+}
+
+/*
+ *      SUBROUTINE TO ENTER THE
+ *      PLAYER'S MOVE
+ */
+static void dismv(int8_t a) {
+    dis2 = (dis2 << 4) | (dis3 >> 4);       // ROTATE KEY
+    dis3 = (dis3 << 4) | a;                 // INTO DISPLAY
+    square = dis3;
+}
+
+static void disp() {
+    int8_t x = 31;
+    while (board[x] != dis2 && --x >= 0) {} // DISPLAY PIECE AT FROM
+    dis1 = x;                               // SQUARE
+    piece = x;
+}
+
+/*
+ *      THE PLAYER'S MOVE IS INPUT
+ */
+static void input(int c) {
+    if (c < 8) {                           // A LEGAL SQUARE #
+        dismv(c);
+        disp();
+    }
+}
+
+static const char *cpl = "WWWWWWWWWWWWWWWWBBBBBBBBBBBBBBBBWWWWWWWWWWWWWWWW";
+static const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
+
+/*
+ * The following routines were added to allow text-based board
+ * display over a standard RS-232 port.
+ */
+static void pout() {
+    putchar('\n');
+    puts("MicroChess (c) 1996-2005 Peter Jennings, www.benlo.com");
+    puts(" 00 01 02 03 04 05 06 07");
+    int y = 0;
+    puts("-------------------------");
+
+    for (;;) {
+        putchar('|');
+        int x;
+        for (x = 31; x >= 0; x--) {
+            if (y == board[x])
+                break;
+        }
+
+        if (x < 0) {                        // empty square
+            char ch = (((y & 1) + ((y >> 4) & 1)) & 1) ? '*' : ' ';
+            putchar(ch);
+            putchar(ch);
+        } else {
+            putchar(rev ? cpl[x + 16] : cpl[x]);  // print piece's color & type
+            putchar(cph[x]);
+        }
+
+        y++;
+        if (y & 8) {                        // have we completed the row?
+            printf("|%02X\n", (unsigned) (y & 0x70));  //jto: looks like a bug!
+            puts("-------------------------");
+            y += 8;                         // point y to beginning of next row
+            if (y == 0x80)                  // was that the last row?
+                break;                      // yes, print the LED values
+        }
+    }
+
+    puts(" 00 01 02 03 04 05 06 07");
+    printf("%02X %02X %02X\n",
+           (unsigned) (uint8_t) bestp,
+           (unsigned) (uint8_t) bestv,
+           (unsigned) (uint8_t) bestm);
+}
+
+static int chess() {
+    for (;;) {
+        sp2 = stack + STACK_SIZE;
+        pout();                             // DISPLAY AND
+        int c = kin();                      // GET INPUT KEY IN ACC
+        if (c == 'C') {
+            memcpy(board, setw, 32);        // SET UP BOARD
+            omove = 27;
+            c = 0xcc;
+        } else if (c == 'E') {
+            reverse();                      // REVERSE BOARD IS
+            rev = !rev;                     // TOGGLE REV FLAG
+            c = 0xee;                       // IS
+        } else if (c == 0x40) {             // [P]
+            c = go();
+            if (c == 0)
+                continue;
+        } else if (c == GO_KEY) {
+            move();
+            disp();
+            continue;
+        } else if (c == 0x41) {             // [Q] ***Added to allow game exit***
+            putchar('\n');
+            change_terminal(false);
+            exit(0);
+        } else if (c == '\n') {
+            // do nothing --jto
+            continue;
+        } else {
+            input(c);
+            continue;
+        }
+        dis1 = c;                           // DISPLAY
+        dis2 = c;                           // ACROSS
+        dis3 = c;                           // DISPLAY
+    }
+}
+
 
 int main() {
     change_terminal(true);
