@@ -1699,6 +1699,9 @@ const uint8_t opning[28] = {
  */
 void change_terminal(bool raw) {
 #ifdef HAVE_TERMIOS
+    if (!isatty(STDIN_FILENO))
+        return;
+
     int flags = ECHO | ECHONL | ICANON;
     struct termios t;
     if (tcgetattr(STDIN_FILENO, &t) != 0) {
