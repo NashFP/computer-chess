@@ -346,37 +346,10 @@ static int chkchk(int s) {
 }
 
 
-/* * */
+/*** Main chess strategy *****************************************************/
 
-static int chess();
-static void on4();
-static void nocount(int s);
-static void tree(int s);
-static void input(int a);
-static void disp();
-static void gnmz();
-static void gnmx(int x);
-static void genrm();
-static int ckmate(int a);
-static int go();
-static int mv2();
-static int mate();
-static void dismv(int8_t a);
-static int stratgy();
-static void pout();
-static int kin();
-static void change_terminal(bool raw);
-
-extern const char *cpl;
-extern const char *cph;
-extern const uint8_t setw[32];
-extern const uint8_t points[16];
-extern const uint8_t opning[28];
-
-static uint8_t rev;
-
-uint8_t wcap0;
-uint8_t capstack[5];
+static uint8_t wcap0;
+static uint8_t capstack[5];
 #define bcap2 (capstack[0])
 #define wcap2 (capstack[1])
 #define bcap1 (capstack[2])
@@ -390,7 +363,7 @@ struct State {
     uint8_t s_pcap;
 };
 
-State states[4];
+static State states[4];
 #define bmob  (states[0].s_mob)
 #define bmaxc (states[0].s_maxc)
 #define bcc   (states[0].s_cc)
@@ -405,12 +378,317 @@ State states[4];
 #define pcc   (states[3].s_cc)
 #define pcp   (states[3].s_pcap)
 
-static uint8_t omove;
-
 static uint8_t bestp, bestv, bestm;
+
+static const uint8_t points[16] = {
+    11, 10, 6, 6, 4, 4, 4, 4,
+    2, 2, 2, 2, 2, 2, 2, 2
+};
+
+static void gnmx(int x) {
+    assert(x == 16 || x == 20);
+    for (int i = 0; i < 5; i++)             // CLEAR COUNTERS
+        capstack[i] = 0;
+    for (int i = 0; i < ((x - 4) >> 2); i++) {
+        State &st = states[i];
+        st.s_mob = 0;
+        st.s_maxc = 0;
+        st.s_cc = 0;
+        st.s_pcap = 0;
+    }
+    gnm();
+}
+
+/*
+ * GENERATE ALL MOVES FOR ONE
+ * SIDE, CALL JANUS AFTER EACH
+ * ONE FOR NEXT STEP
+ *
+ */
+static void gnmz() { gnmx(16); }
+
+static void genrm() {
+    move();                                 // MAKE MOVE
+    reverse();                              // REVERSE BOARD
+    gnm();                                  // GENERATE MOVES
+    reverse();                              // REVERSE BACK
+    umove();
+}
+
+/*
+ *      IF A PIECE HAS BEEN CAPTURED BY
+ *      A TRIAL MOVE, GENERATE REPLIES &
+ *      EVALUATE THE EXCHANGE GAIN/LOSS
+ */
+static void tree(int s) {
+    assert(state <= 0);
+    assert(state > -5);
+    assert(s == 0 || s == S_CAPTURE);
+    assert((square & 0x88) == 0);
+    if (!s)                                 // NO CAP
+        return;
+
+    int y;
+    for (y = 7; square != bk[y];) {         // (PIECES)
+        y--;
+        if (y == 0)                         // (KING)
+            return;
+    }                                       // SAVE
+    if (points[y] >= capstack[state + 4]) {
+        capstack[state + 4] = points[y];
+    }
+    state--;
+    if (state != -5)                        // IF STATE=FB TIME TO TURN AROUND
+        genrm();                            // GENERATE FURTHER CAPTURES
+    state++;
+}
+
+static void nocount(int s) {
+    assert(s == 0 || s == S_CAPTURE);
+    if (state != ST_CHKCHK) {
+        tree(s);
+    } else {
+        //
+        // DETERMINE IF THE KING CAN BE
+        // TAKEN, USED BY CHKCHK
+        //
+        if (bk[0] == square)                // IS KING IN CHECK?
+            inchek = true;                  // SET INCHEK=0 IF IT IS
+    }
+}
+
+/*
+ *      CONTINUATION OF SUB STRATGY
+ *      -CHECKS FOR CHECK OR CHECKMATE
+ *      AND ASSIGNS VALUE TO MOVE
+ */
+static int ckmate(int a) {
+    if (bmaxc == points[0])                 // CAN BLK CAP MY KING?
+        a = 0;                              // GULP! DUMB MOVE!
+    else if (bmob == 0 && wmaxp == 0)       // IS BLACK UNABLE TO MOVE AND KING IN CH?
+        a = 0xff;                           // YES! MATE
+
+    state = 4;                              // RESTORE STATE=4
+
+    //
+    // THE VALUE OF THE MOVE (IN ACCU)
+    // IS COMPARED TO THE BEST MOVE AND
+    // REPLACES IT IF IT IS BETTER
+    //
+    if (a > bestv) {                        // IS THIS BEST MOVE SO FAR?
+        bestv = a;                          // YES!
+        bestp = piece;                      // SAVE IT
+        bestm = square;                     // FLASH DISPLAY
+    }
+    putchar('.');                           // print ... instead of flashing disp
+    fflush(stdout);                         // print . and return
+    return a;
+}
+
+static int stratgy() {
+    int a = 0x80;
+
+    a += wmob + wmaxc + wcc                 // PARAMETERS WITH WEIGHT OF 0.25
+         + wcap1 + wcap2
+         - pmaxc - pcc - bcap0 - bcap1 - bcap2 - pmob - bmob;
+    if (a < 0)                              // UNDERFLOW
+        a = 0;                              // PREVENTION
+
+    a >>= 1;                                // PARAMETERS WITH WEIGHT OF 0.5
+    a += 0x40 + wmaxc + wcc - bmaxc;
+
+    a >>= 1;
+    a += 0x90
+        + 4 * wcap0                         // PARAMETERS WITH WEIGHT OF 1.0
+         + wcap1
+         - 2 * bmaxc                        // [UNDER OR OVERFLOW MAY OCCUR
+         - 2 * bcc                          // FROM THIS SECTION]
+         - bcap1;
+
+    if (square == 0x33 ||                   // POSITION BONUS FOR
+        square == 0x34 ||                   // MOVE TO CENTRE
+        square == 0x22 ||                   // OR OUT OF
+        square == 0x25 ||                   // BACK RANK
+        !(piece == 0 || board[piece] >= 16))
+    {
+        a += 2;
+    }
+    return ckmate(a);                        // CONTINUE
+}
+
+/*
+ *      GENERATE FURTHER MOVES FOR COUNT
+ *      AND ANALYSIS
+ */
+static void on4() {
+    wcap0 = xmaxc;                          // SAVE ACTUAL CAPTURE
+    state = 0;                              // STATE=0
+    move();                                 // GENERATE
+    reverse();                              // IMMEDIATE
+    gnmz();                                 // REPLY MOVES
+    reverse();
+
+    state = 8;                              // STATE=8; GENERATE
+    gnm();                                  // CONTINUATION
+    umove();                                // MOVES
+
+    stratgy();                              // FINAL EVALUATION
+}
+
+/*
+ *      THE ROUTINE JANUS DIRECTS THE
+ *      ANALYSIS BY DETERMINING WHAT
+ *      SHOULD OCCUR AFTER EACH MOVE
+ *      GENERATED BY GNM
+ *
+ *
+ */
+static void janus(int s) {
+    assert(s == 0 || s == S_CAPTURE);
+    if (state < 0) {
+        nocount(s);
+        return;
+    }
+
+    //
+    //      THIS ROUTINE COUNTS OCCURRENCES
+    //      IT DEPENDS UPON STATE TO INDEX
+    //      THE CORRECT COUNTERS
+    //
+    if (piece == 0 || state != 8 || piece != bmaxp) {  // IF STATE=8 DO NOT COUNT BLK MAX CAP MOVES FOR WHITE
+        assert(state >= 0);
+        assert(state <= 12);
+        assert((state & 3) == 0);
+        State &st = states[state>>2];
+        st.s_mob++;                         // MOBILITY
+        if (piece == 1)                     //  + QUEEN
+            st.s_mob++;                     // FOR TWO
+        if (s & S_CAPTURE) {
+            int y = 15;
+            while (square != bk[y] && --y >= 0) {}
+            assert(y >= 0);
+            int pts = points[y];
+            if (pts >= st.s_maxc) {         // SAVE IF
+                st.s_pcap = y;              // BEST THIS
+                st.s_maxc = pts;            // STATE
+            }
+            st.s_cc += pts;
+        }
+        if (state == 4)
+            on4();
+        else if (state < 4)
+            tree(s);
+    }
+}
+
+
+static int chess();
+static void change_terminal(bool raw);
+
 #define dis1 bestp
 #define dis2 bestv
 #define dis3 bestm
+
+static uint8_t omove;
+
+/*
+ * Microchess knows a 9-move standard canned opening.  This is the opening.
+ * It's read by go(), and (like everything else in the program) the array is
+ * read backwards.  A global variable 'omove' indexes into this array.
+ *
+ * The 0xcc at opning[27] refers to the initial state of the "black's last move" variable.
+ *
+ * Each row, reading from right to left, has:
+ * - a number from 0x00 to 0x0f telling which piece white is moving;
+ * - the square white's piece moves to;
+ * - the square black moves to in response.
+ *
+ * The computer, playing as white, doesn't care which piece black moves; but if
+ * the black move does not end up on the particular space expected, we've gone
+ * off script, and the computer switches from this canned opening to the AI.
+ *
+ * If black follows the script, we get the Giuoco Piano:
+ *     https://en.wikipedia.org/wiki/Giuoco_Piano
+ * 365chess.com calls 7. Nc3 "Greco's attack".
+ *
+ * After '9. bxc3', here's what the board might look like:
+ *
+ *     r . b q k . . r
+ *     p p p p . p p p
+ *     . . n . . . . .
+ *     . . . . . . . .
+ *     . . B P n . . .
+ *     . . P . . N . .
+ *     P . . . . P P P
+ *     R . B Q . R K .
+ *
+ * The last move here, bxc3, is not necessarily better than d5.
+ *
+ */
+const uint8_t opning[28] = {
+    0x99, 0x25, 0x0b,  // 9. bxc3
+    0x25, 0x01, 0x00,  // 8. o-o Bxc3 (or Nxc3)
+    0x33, 0x25, 0x07,  // 7. Nc3 Nxe4
+    0x36, 0x34, 0x0d,  // 6. cxd4 Bb4+ (or Nb4)
+    0x34, 0x34, 0x0e,  // 5. d4 exd4 (or Bxd4 or Nxd4)
+    0x52, 0x25, 0x0d,  // 4. c3 Nf6 (or f7f6)
+    0x45, 0x35, 0x04,  // 3. Bc4 Bc5 (or the unlikely c6c5)
+    0x55, 0x22, 0x06,  // 2. Nf3 Nc6 (or the unlikely c7c6)
+    0x43, 0x33, 0x0f,  // 1. e4 e5
+    0xcc
+};
+
+static int mv2() {
+    bestv = board[bestp];                   // MOVE THE BEST
+    piece = bestp;                          // MOVE
+    square = bestm;                         // AND DISPLAY
+    move();                                 // IT
+    return chess();
+}
+
+static int mate() {
+    change_terminal(false);
+    exit(1);                                // RESIGN OR STALEMATE
+}
+
+/*
+ *      MAIN PROGRAM TO PLAY CHESS
+ *      PLAY FROM OPENING OR THINK
+ */
+static int go() {
+    if (omove >= 0) {                        // OPENING? -NO   *ADD CHANGE FROM BPL
+        if (dis3 == opning[omove]) {        // YES WAS. OPPONENT'S MOVE OK?
+            dis1 = opning[--omove];         // GET NEXT CANNED OPENING MOVE
+            dis3 = opning[--omove];         // DISPLAY IT
+            --omove;                        // MOVE IT
+            return mv2();
+        }
+        omove = -1;                         // *ADD - STOP CANNED MOVES. FLAG OPENING FINISHED
+    }
+    state = 0x0c;                           // STATE=C
+    bestv = 0x0c;                           // CLEAR BESTV
+    gnmx(20);                               // GENERATE P MOVES
+    state = 4;                              // STATE=4  GENERATE AND
+    gnmz();                                 // TEST AVAILABLE MOVES
+    if (bestv < 0x0f)                       // GET BEST MOVE. IF NONE
+        return mate();                      // UH OH!
+    return mv2();
+}
+
+
+/* * */
+
+static void input(int a);
+static void disp();
+static void dismv(int8_t a);
+static void pout();
+static int kin();
+
+extern const char *cpl;
+extern const char *cph;
+extern const uint8_t setw[32];
+
+static uint8_t rev;
 
 int chess() {
     for (;;) {
@@ -451,113 +729,6 @@ int chess() {
 }
 
 /*
- *      THE ROUTINE JANUS DIRECTS THE
- *      ANALYSIS BY DETERMINING WHAT
- *      SHOULD OCCUR AFTER EACH MOVE
- *      GENERATED BY GNM
- *
- *
- */
-void janus(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-    if (state < 0) {
-        nocount(s);
-        return;
-    }
-
-    //
-    //      THIS ROUTINE COUNTS OCCURRENCES
-    //      IT DEPENDS UPON STATE TO INDEX
-    //      THE CORRECT COUNTERS
-    //
-    if (piece == 0 || state != 8 || piece != bmaxp) {  // IF STATE=8 DO NOT COUNT BLK MAX CAP MOVES FOR WHITE
-        assert(state >= 0);
-        assert(state <= 12);
-        assert((state & 3) == 0);
-        State &st = states[state>>2];
-        st.s_mob++;                         // MOBILITY
-        if (piece == 1)                     //  + QUEEN
-            st.s_mob++;                     // FOR TWO
-        if (s & S_CAPTURE) {
-            int y = 15;
-            while (square != bk[y] && --y >= 0) {}
-            assert(y >= 0);
-            int pts = points[y];
-            if (pts >= st.s_maxc) {         // SAVE IF
-                st.s_pcap = y;              // BEST THIS
-                st.s_maxc = pts;            // STATE
-            }
-            st.s_cc += pts;
-        }
-        if (state == 4)
-            on4();
-        else if (state < 4)
-            tree(s);
-    }
-}
-
-/*
- *      GENERATE FURTHER MOVES FOR COUNT
- *      AND ANALYSIS
- */
-void on4() {
-    wcap0 = xmaxc;                          // SAVE ACTUAL CAPTURE
-    state = 0;                              // STATE=0
-    move();                                 // GENERATE
-    reverse();                              // IMMEDIATE
-    gnmz();                                 // REPLY MOVES
-    reverse();
-
-    state = 8;                              // STATE=8; GENERATE
-    gnm();                                  // CONTINUATION
-    umove();                                // MOVES
-
-    stratgy();                              // FINAL EVALUATION
-}
-
-void nocount(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-    if (state != ST_CHKCHK) {
-        tree(s);
-    } else {
-        //
-        // DETERMINE IF THE KING CAN BE
-        // TAKEN, USED BY CHKCHK
-        //
-        if (bk[0] == square)                // IS KING IN CHECK?
-            inchek = true;                  // SET INCHEK=0 IF IT IS
-    }
-}
-
-/*
- *      IF A PIECE HAS BEEN CAPTURED BY
- *      A TRIAL MOVE, GENERATE REPLIES &
- *      EVALUATE THE EXCHANGE GAIN/LOSS
- */
-void tree(int s) {
-    assert(state <= 0);
-    assert(state > -5);
-    assert(s == 0 || s == S_CAPTURE);
-    assert((square & 0x88) == 0);
-    if (!s)                                 // NO CAP
-        return;
-
-    int y;
-    for (y = 7; square != bk[y];) {         // (PIECES)
-        y--;
-        if (y == 0)                         // (KING)
-            return;
-    }                                       // SAVE
-    if (points[y] >= capstack[state + 4]) {
-        capstack[state + 4] = points[y];
-    }
-    state--;
-    if (state != -5)                        // IF STATE=FB TIME TO TURN AROUND
-        genrm();                            // GENERATE FURTHER CAPTURES
-    state++;
-}
-
-/*
  *      THE PLAYER'S MOVE IS INPUT
  */
 void input(int c) {
@@ -575,101 +746,6 @@ void disp() {
 }
 
 /*
- * GENERATE ALL MOVES FOR ONE
- * SIDE, CALL JANUS AFTER EACH
- * ONE FOR NEXT STEP
- *
- */
-void gnmz() { gnmx(16); }
-
-void gnmx(int x) {
-    assert(x == 16 || x == 20);
-    for (int i = 0; i < 5; i++)             // CLEAR COUNTERS
-        capstack[i] = 0;
-    for (int i = 0; i < ((x - 4) >> 2); i++) {
-        State &st = states[i];
-        st.s_mob = 0;
-        st.s_maxc = 0;
-        st.s_cc = 0;
-        st.s_pcap = 0;
-    }
-    gnm();
-}
-
-void genrm() {
-    move();                                 // MAKE MOVE
-    reverse();                              // REVERSE BOARD
-    gnm();                                  // GENERATE MOVES
-    reverse();                              // REVERSE BACK
-    umove();
-}
-
-/*
- *      CONTINUATION OF SUB STRATGY
- *      -CHECKS FOR CHECK OR CHECKMATE
- *      AND ASSIGNS VALUE TO MOVE
- */
-int ckmate(int a) {
-    if (bmaxc == points[0])                 // CAN BLK CAP MY KING?
-        a = 0;                              // GULP! DUMB MOVE!
-    else if (bmob == 0 && wmaxp == 0)       // IS BLACK UNABLE TO MOVE AND KING IN CH?
-        a = 0xff;                           // YES! MATE
-
-    state = 4;                              // RESTORE STATE=4
-
-    //
-    // THE VALUE OF THE MOVE (IN ACCU)
-    // IS COMPARED TO THE BEST MOVE AND
-    // REPLACES IT IF IT IS BETTER
-    //
-    if (a > bestv) {                        // IS THIS BEST MOVE SO FAR?
-        bestv = a;                          // YES!
-        bestp = piece;                      // SAVE IT
-        bestm = square;                     // FLASH DISPLAY
-    }
-    putchar('.');                           // print ... instead of flashing disp
-    fflush(stdout);                         // print . and return
-    return a;
-}
-
-/*
- *      MAIN PROGRAM TO PLAY CHESS
- *      PLAY FROM OPENING OR THINK
- */
-int go() {
-    if (omove >= 0) {                        // OPENING? -NO   *ADD CHANGE FROM BPL
-        if (dis3 == opning[omove]) {        // YES WAS. OPPONENT'S MOVE OK?
-            dis1 = opning[--omove];         // GET NEXT CANNED OPENING MOVE
-            dis3 = opning[--omove];         // DISPLAY IT
-            --omove;                        // MOVE IT
-            return mv2();
-        }
-        omove = -1;                         // *ADD - STOP CANNED MOVES. FLAG OPENING FINISHED
-    }
-    state = 0x0c;                           // STATE=C
-    bestv = 0x0c;                           // CLEAR BESTV
-    gnmx(20);                               // GENERATE P MOVES
-    state = 4;                              // STATE=4  GENERATE AND
-    gnmz();                                 // TEST AVAILABLE MOVES
-    if (bestv < 0x0f)                       // GET BEST MOVE. IF NONE
-        return mate();                      // UH OH!
-    return mv2();
-}
-
-int mv2() {
-    bestv = board[bestp];                   // MOVE THE BEST
-    piece = bestp;                          // MOVE
-    square = bestm;                         // AND DISPLAY
-    move();                                 // IT
-    return chess();
-}
-
-int mate() {
-    change_terminal(false);
-    exit(1);                                // RESIGN OR STALEMATE
-}
-
-/*
  *      SUBROUTINE TO ENTER THE
  *      PLAYER'S MOVE
  */
@@ -677,37 +753,6 @@ void dismv(int8_t a) {
     dis2 = (dis2 << 4) | (dis3 >> 4);       // ROTATE KEY
     dis3 = (dis3 << 4) | a;                 // INTO DISPLAY
     square = dis3;
-}
-
-int stratgy() {
-    int a = 0x80;
-
-    a += wmob + wmaxc + wcc                 // PARAMETERS WITH WEIGHT OF 0.25
-         + wcap1 + wcap2
-         - pmaxc - pcc - bcap0 - bcap1 - bcap2 - pmob - bmob;
-    if (a < 0)                              // UNDERFLOW
-        a = 0;                              // PREVENTION
-
-    a >>= 1;                                // PARAMETERS WITH WEIGHT OF 0.5
-    a += 0x40 + wmaxc + wcc - bmaxc;
-
-    a >>= 1;
-    a += 0x90
-        + 4 * wcap0                         // PARAMETERS WITH WEIGHT OF 1.0
-         + wcap1
-         - 2 * bmaxc                        // [UNDER OR OVERFLOW MAY OCCUR
-         - 2 * bcc                          // FROM THIS SECTION]
-         - bcap1;
-
-    if (square == 0x33 ||                   // POSITION BONUS FOR
-        square == 0x34 ||                   // MOVE TO CENTRE
-        square == 0x22 ||                   // OR OUT OF
-        square == 0x25 ||                   // BACK RANK
-        !(piece == 0 || board[piece] >= 16))
-    {
-        a += 2;
-    }
-    return ckmate(a);                        // CONTINUE
 }
 
 /*
@@ -768,57 +813,6 @@ const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
  * end of added code
  */
 
-const uint8_t points[16] = {
-    11, 10, 6, 6, 4, 4, 4, 4,
-    2, 2, 2, 2, 2, 2, 2, 2
-};
-
-/*
- * Microchess knows a 9-move standard canned opening.  This is the opening.
- * It's read by go(), and (like everything else in the program) the array is
- * read backwards.  A global variable 'omove' indexes into this array.
- *
- * The 0xcc at opning[27] refers to the initial state of the "black's last move" variable.
- *
- * Each row, reading from right to left, has:
- * - a number from 0x00 to 0x0f telling which piece white is moving;
- * - the square white's piece moves to;
- * - the square black moves to in response.
- *
- * The computer, playing as white, doesn't care which piece black moves; but if
- * the black move does not end up on the particular space expected, we've gone
- * off script, and the computer switches from this canned opening to the AI.
- *
- * If black follows the script, we get the Giuoco Piano:
- *     https://en.wikipedia.org/wiki/Giuoco_Piano
- * 365chess.com calls 7. Nc3 "Greco's attack".
- *
- * After '9. bxc3', here's what the board might look like:
- *
- *     r . b q k . . r
- *     p p p p . p p p
- *     . . n . . . . .
- *     . . . . . . . .
- *     . . B P n . . .
- *     . . P . . N . .
- *     P . . . . P P P
- *     R . B Q . R K .
- *
- * The last move here, bxc3, is not necessarily better than d5.
- *
- */
-const uint8_t opning[28] = {
-    0x99, 0x25, 0x0b,  // 9. bxc3
-    0x25, 0x01, 0x00,  // 8. o-o Bxc3 (or Nxc3)
-    0x33, 0x25, 0x07,  // 7. Nc3 Nxe4
-    0x36, 0x34, 0x0d,  // 6. cxd4 Bb4+ (or Nb4)
-    0x34, 0x34, 0x0e,  // 5. d4 exd4 (or Bxd4 or Nxd4)
-    0x52, 0x25, 0x0d,  // 4. c3 Nf6 (or f7f6)
-    0x45, 0x35, 0x04,  // 3. Bc4 Bc5 (or the unlikely c6c5)
-    0x55, 0x22, 0x06,  // 2. Nf3 Nc6 (or the unlikely c7c6)
-    0x43, 0x33, 0x0f,  // 1. e4 e5
-    0xcc
-};
 
 /*
  * Turn the terminal's raw mode on or off.
