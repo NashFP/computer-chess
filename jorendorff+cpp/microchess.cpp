@@ -177,7 +177,7 @@ static const uint8_t movex[17] = {
 };
 
 static void janus(int s);
-static int spx(int s);
+static int chkchk(int s);
 
 #define S_ILLEGAL 1
 #define S_CAPTURE 2
@@ -203,14 +203,25 @@ static int cmove() {
         return S_ILLEGAL;                   // OFF BOARD
 
     int x = 0x20;
-    do {
+    int s;
+    for (;;) {
         --x;                                // IS TO SQUARE OCCUPIED?
-        if (x < 0)
-            return spx(0);
-    } while (square != board[x]);
-    if (x < 0x10)                           // BY SELF?
-        return S_ILLEGAL;
-    return spx(S_CAPTURE);                  // MUST BE CAP! SET V FLAG
+        if (x < 0) {
+            s = 0;
+            break;
+        }
+        if (square == board[x]) {
+            if (x < 0x10)                   // BY SELF?
+                return S_ILLEGAL;
+            s = S_CAPTURE;                  // MUST BE CAP! SET V FLAG
+            break;
+        }
+    }
+
+    if (state < 0 || state >= 8)            // SHOULD WE DO THE CHECK CHECK?
+        return s;
+
+    return chkchk(s);
 }
 
 /*
@@ -310,21 +321,16 @@ static void gnm() {
     }
 }
 
-static int spx(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-
-    if (state < 0 || state >= 8)            // SHOULD WE DO THE CHECK CHECK?
-        return s;
-
-    //
-    //      CHKCHK REVERSES SIDES
-    //      AND LOOKS FOR A KING
-    //      CAPTURE TO INDICATE
-    //      ILLEGAL MOVE BECAUSE OF
-    //      CHECK  SINCE THIS IS
-    //      TIME CONSUMING, IT IS NOT
-    //      ALWAYS DONE
-    //
+/*
+ *      CHKCHK REVERSES SIDES
+ *      AND LOOKS FOR A KING
+ *      CAPTURE TO INDICATE
+ *      ILLEGAL MOVE BECAUSE OF
+ *      CHECK  SINCE THIS IS
+ *      TIME CONSUMING, IT IS NOT
+ *      ALWAYS DONE
+ */
+static int chkchk(int s) {
     int8_t saved = state;
     state = ST_CHKCHK;
     inchek = false;
@@ -338,6 +344,7 @@ static int spx(int s) {
         return s;                           // NO - SAFE
     return S_ILLEGAL | S_ILLCHK;            // YES - IN CHK
 }
+
 
 /* * */
 
