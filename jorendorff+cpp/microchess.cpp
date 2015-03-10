@@ -164,14 +164,182 @@ static void umove() {
 }
 
 
-/* * */
+/*** Move generation *********************************************************/
+
+static int8_t inchek;
+static int8_t state;
+
+static const uint8_t movex[17] = {
+    0x00, 0xf0, 0xff, 0x01, 0x10, 0x11, 0x0f, 0xef, 0xf1,
+    0xdf, 0xe1, 0xee, 0xf2, 0x12, 0x03, 0x1f, 0x21
+};
+
+static void janus(int s);
+static int spx(int s);
 
 #define S_ILLEGAL 1
 #define S_CAPTURE 2
 #define S_ILLCHK 4
 
+/*
+ *      CMOVE CALCULATES THE TO SQUARE
+ *      USING SQUARE AND THE MOVE
+ *      TABLE,  FLAGS SET AS FOLLOWS:
+ *      S_ILLEGAL - ILLEGAL MOVE
+ *      S_CAPTURE - CAPTURE (LEGAL UNLESS IN CH)
+ *      S_ILLCHK - ILLEGAL BECAUSE OF CHECK
+ *      [MY THANKS TO JIM BUTTERFIELD
+ *      WHO WROTE THIS MORE EFFICIENT
+ *      VERSION OF CMOVE]
+ *
+ * Reads: square, moven, board
+ * Writes: square
+ */
+static int cmove() {
+    square = square + movex[moven];         // NEW POS'N
+    if (square & 0x88)
+        return S_ILLEGAL;                   // OFF BOARD
+
+    int x = 0x20;
+    do {
+        --x;                                // IS TO SQUARE OCCUPIED?
+        if (x < 0)
+            return spx(0);
+    } while (square != board[x]);
+    if (x < 0x10)                           // BY SELF?
+        return S_ILLEGAL;
+    return spx(S_CAPTURE);                  // MUST BE CAP! SET V FLAG
+}
+
+/*
+ *      REPLACE PIECE ON CORRECT SQUARE
+ */
+static void reset() {
+    square = board[piece];                  // GET LOGAT FOR PIECE FROM BOARD
+}
+
+/*
+ *      CALCULATE SINGLE STEP MOVES
+ *      FOR K,N
+ *
+ * Returns true if moven is nonzero,
+ * i.e. there are more moves to consider.
+ */
+static bool sngmv() {
+    int s = cmove();
+    if (!(s & S_ILLEGAL))                   // CALC MOVE -IF LEGAL
+        janus(s);                           // -EVALUATE
+    reset();
+    return --moven != 0;
+}
+
+/*
+ *      CALCULATE ALL MOVES DOWN A
+ *      STRAIGHT LINE FOR Q,B,R
+ *
+ * Returns true if moven is nonzero,
+ * i.e. there are more moves to consider.
+ */
+static bool line() {
+    int s;
+
+    while (true) {
+        s = cmove();                        // CALC MOVE
+        if (!(s & S_ILLCHK) || (s & S_CAPTURE)) {  // NO CHK, NOCAP
+            if (s & S_ILLEGAL)              // RETURN
+                break;
+            janus(s);
+            if (s & S_CAPTURE)              // NOT A CAP
+                break;
+        }
+    }
+
+    reset();                                // LINE STOPPED
+    return --moven != 0;                    // NEXT DIR
+}
+
+/*
+ * gnm - Generate moves.
+ *
+ * For each legal move that white can play, set 'piece' to the index of the
+ * piece being moved and 'square' to the destination square, and call
+ * janus(S_CAPTURE) if the move is a capture and janus(0) if it is not.
+ *
+ * This does not consider en passant or castling.
+ */
+static void gnm() {
+    piece = 16;                             // SET UP PIECE
+    while (--piece >= 0) {                  // NEW PIECE. ALL DONE?
+        reset();                            // READY
+        // GET PIECE
+        moven = 8;                          // COMMON START
+        if (piece >= 8) {                   // WHAT IS IT? PAWN
+            moven = 6;
+            do {
+                int s = cmove();
+                if ((s & (S_CAPTURE | S_ILLEGAL)) == S_CAPTURE) {  // RIGHT CAP?
+                    janus(s);               // YES
+                }
+                reset();
+            } while (--moven == 5);         // LEFT CAP?
+            do {
+                int s = cmove();
+                if (s & (S_CAPTURE | S_ILLEGAL))  // AHEAD
+                    break;                  // ILLEGAL
+                janus(s);
+            } while ((square & 0xf0) == 0x20);  // GETS TO 3RD RANK?
+        } else if (piece >= 6) {            // KNIGHT
+            moven = 16;                     // MOVES
+            do {
+                sngmv();                    // 16 TO 9
+            } while (moven != 8);
+        } else if (piece >= 4) {            // BISHOP
+            do {
+                line();
+            } while (moven != 4);           // MOVES 8 TO 5
+        } else if (piece == 1) {            // QUEEN
+            while (line() != 0) {}          // MOVES 8 TO 1
+        } else if (piece > 1) {             // ROOK
+            moven = 4;                      // MOVES
+            while (line() != 0) {}
+        } else {                            // MUST BE KING!
+            while (sngmv() != 0) {}         // MOVES 8 TO 1
+        }
+    }
+}
+
+static int spx(int s) {
+    assert(s == 0 || s == S_CAPTURE);
+
+    if (state < 0 || state >= 8)            // SHOULD WE DO THE CHECK CHECK?
+        return s;
+
+    //
+    //      CHKCHK REVERSES SIDES
+    //      AND LOOKS FOR A KING
+    //      CAPTURE TO INDICATE
+    //      ILLEGAL MOVE BECAUSE OF
+    //      CHECK  SINCE THIS IS
+    //      TIME CONSUMING, IT IS NOT
+    //      ALWAYS DONE
+    //
+    int8_t saved = state;
+    state = -7;
+    inchek = -7;
+    move();
+    reverse();
+    gnm();
+    reverse();
+    umove();
+    state = saved;
+    if (inchek < 0)
+        return s;                           // NO - SAFE
+    return S_ILLEGAL | S_ILLCHK;            // YES - IN CHK
+}
+
+/* * */
+
 static int chess();
-static void janus(int s);
 static void on4();
 static void nocount(int s);
 static void tree(int s);
@@ -179,12 +347,6 @@ static void input(int a);
 static void disp();
 static void gnmz();
 static void gnmx(int x);
-static void gnm();
-static bool sngmv();
-static bool line();
-static int cmove();
-static int spx(int s);
-static void reset();
 static void genrm();
 static int ckmate(int a);
 static int go();
@@ -199,12 +361,9 @@ static void change_terminal(bool raw);
 extern const char *cpl;
 extern const char *cph;
 extern const uint8_t setw[32];
-extern const uint8_t movex[17];
 extern const uint8_t points[16];
 extern const uint8_t opning[28];
 
-static int8_t inchek;
-static int8_t state;
 static uint8_t rev;
 
 uint8_t wcap0;
@@ -428,173 +587,6 @@ void gnmx(int x) {
     gnm();
 }
 
-/*
- * gnm - Generate moves.
- *
- * For each legal move that white can play, set 'piece' to the index of the
- * piece being moved and 'square' to the destination square, and call
- * janus(S_CAPTURE) if the move is a capture and janus(0) if it is not.
- *
- * This does not consider en passant or castling.
- *
- * Uses piece, moven, square,
- */
-void gnm() {
-    piece = 16;                             // SET UP PIECE
-    while (--piece >= 0) {                  // NEW PIECE. ALL DONE?
-        reset();                            // READY
-        // GET PIECE
-        moven = 8;                          // COMMON START
-        if (piece >= 8) {                   // WHAT IS IT? PAWN
-            moven = 6;
-            do {
-                int s = cmove();
-                if ((s & (S_CAPTURE | S_ILLEGAL)) == S_CAPTURE) {  // RIGHT CAP?
-                    janus(s);               // YES
-                }
-                reset();
-            } while (--moven == 5);         // LEFT CAP?
-            do {
-                int s = cmove();
-                if (s & (S_CAPTURE | S_ILLEGAL))  // AHEAD
-                    break;                  // ILLEGAL
-                janus(s);
-            } while ((square & 0xf0) == 0x20);  // GETS TO 3RD RANK?
-        } else if (piece >= 6) {            // KNIGHT
-            moven = 16;                     // MOVES
-            do {
-                sngmv();                    // 16 TO 9
-            } while (moven != 8);
-        } else if (piece >= 4) {            // BISHOP
-            do {
-                line();
-            } while (moven != 4);           // MOVES 8 TO 5
-        } else if (piece == 1) {            // QUEEN
-            while (line() != 0) {}          // MOVES 8 TO 1
-        } else if (piece > 1) {             // ROOK
-            moven = 4;                      // MOVES
-            while (line() != 0) {}
-        } else {                            // MUST BE KING!
-            while (sngmv() != 0) {}         // MOVES 8 TO 1
-        }
-    }
-}
-
-
-//> ;
-//> ;      CALCULATE SINGLE STEP MOVES
-//> ;      FOR K,N
-//> ;
-//> SNGMV           JSR     CMOVE           ; CALC MOVE
-//>                 BMI     ILL1            ; -IF LEGAL
-//>                 JSR     JANUS           ; -EVALUATE
-//> ILL1            JSR     RESET
-//>                 DEC     MOVEN
-//>                 RTS
-
-/*
- *      CALCULATE SINGLE STEP MOVES
- *      FOR K,N
- *
- * Returns true if moven is nonzero,
- * i.e. there are more moves to consider.
- */
-bool sngmv() {
-    int s = cmove();
-    if (!(s & S_ILLEGAL))                   // CALC MOVE -IF LEGAL
-        janus(s);                           // -EVALUATE
-    reset();
-    return --moven != 0;
-}
-
-/*
- *      CALCULATE ALL MOVES DOWN A
- *      STRAIGHT LINE FOR Q,B,R
- *
- * Returns true if moven is nonzero,
- * i.e. there are more moves to consider.
- */
-bool line() {
-    int s;
-
-    while (true) {
-        s = cmove();                        // CALC MOVE
-        if (!(s & S_ILLCHK) || (s & S_CAPTURE)) {  // NO CHK, NOCAP
-            if (s & S_ILLEGAL)              // RETURN
-                break;
-            janus(s);
-            if (s & S_CAPTURE)              // NOT A CAP
-                break;
-        }
-    }
-
-    reset();                                // LINE STOPPED
-    return --moven != 0;                    // NEXT DIR
-}
-
-/*
- *      CMOVE CALCULATES THE TO SQUARE
- *      USING SQUARE AND THE MOVE
- *      TABLE,  FLAGS SET AS FOLLOWS:
- *      S_ILLEGAL - ILLEGAL MOVE
- *      S_CAPTURE - CAPTURE (LEGAL UNLESS IN CH)
- *      S_ILLCHK - ILLEGAL BECAUSE OF CHECK
- *      [MY THANKS TO JIM BUTTERFIELD
- *      WHO WROTE THIS MORE EFFICIENT
- *      VERSION OF CMOVE]
- */
-int cmove() {
-    square = square + movex[moven];         // NEW POS'N
-    if (square & 0x88)
-        return S_ILLEGAL;                   // OFF BOARD
-
-    int x = 0x20;
-    do {
-        --x;                                // IS TO SQUARE OCCUPIED?
-        if (x < 0)
-            return spx(0);
-    } while (square != board[x]);
-    if (x < 0x10)                           // BY SELF?
-        return S_ILLEGAL;
-    return spx(S_CAPTURE);                  // MUST BE CAP! SET V FLAG
-}
-
-int spx(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-
-    if (state < 0 || state >= 8)            // SHOULD WE DO THE CHECK CHECK?
-        return s;
-
-    //
-    //      CHKCHK REVERSES SIDES
-    //      AND LOOKS FOR A KING
-    //      CAPTURE TO INDICATE
-    //      ILLEGAL MOVE BECAUSE OF
-    //      CHECK  SINCE THIS IS
-    //      TIME CONSUMING, IT IS NOT
-    //      ALWAYS DONE
-    //
-    int8_t saved = state;
-    state = -7;
-    inchek = -7;
-    move();
-    reverse();
-    gnm();
-    reverse();
-    umove();
-    state = saved;
-    if (inchek < 0)
-        return s;                           // NO - SAFE
-    return S_ILLEGAL | S_ILLCHK;            // YES - IN CHK
-}
-
-/*
- *      REPLACE PIECE ON CORRECT SQUARE
- */
-void reset() {
-    square = board[piece];                  // GET LOGAT FOR PIECE FROM BOARD
-}
-
 void genrm() {
     move();                                 // MAKE MOVE
     reverse();                              // REVERSE BOARD
@@ -766,11 +758,6 @@ const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
 /*
  * end of added code
  */
-
-const uint8_t movex[17] = {
-    0x00, 0xf0, 0xff, 0x01, 0x10, 0x11, 0x0f, 0xef, 0xf1,
-    0xdf, 0xe1, 0xee, 0xf2, 0x12, 0x03, 0x1f, 0x21
-};
 
 const uint8_t points[16] = {
     11, 10, 6, 6, 4, 4, 4, 4,
