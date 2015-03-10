@@ -96,6 +96,76 @@ static void reverse() {
 }
 
 
+/*** Move stack **************************************************************/
+
+struct Move {
+    uint8_t m_moven;        // saved state of moven global variable
+    int8_t  m_piece;        // index of piece that was moved
+    uint8_t m_src;          // where m_piece was before this move
+    uint8_t m_captured;     // index of piece that was captured
+    uint8_t m_dest;         // where m_piece was moved to
+};
+
+/*
+ * This is something of a mystery. In the original program, the stack could
+ * grow to at most 3 moves before overwriting REV and other variables.  But the
+ * program pretty clearly recurses... I dunno, setting it to 8 is a stopgap
+ * until I understand what's going on.
+ */
+#define STACK_SIZE 8
+static Move stack[STACK_SIZE];  // [$B9:$C8]
+Move *sp2;
+
+static uint8_t moven;
+static int8_t piece;
+static uint8_t square;
+
+/*
+ *      THIS ROUTINE MOVES PIECE
+ *      TO SQUARE, PARAMETERS
+ *      ARE SAVED IN A STACK TO UNMAKE
+ *      THE MOVE LATER
+ */
+static void move() {
+    assert(sp2 > stack);
+    sp2--;
+
+    sp2->m_dest = square;                   // TO SQUARE
+    int x = 0x1f;
+
+    do {
+        if (square == board[x])             // CHECK FOR
+            break;                          // CAPTURE
+        x--;
+    } while (x >= 0);
+
+    board[x] = CAPTURED;
+    sp2->m_captured = x;                    // CAPTURED PIECE
+    int src = board[piece];
+    board[piece] = square;                  // FROM
+    sp2->m_src = src;                       // SQUARE
+    sp2->m_piece = piece;                   // PIECE
+    sp2->m_moven = moven;                   // MOVEN
+}
+
+/*
+ *      ROUTINE TO UNMAKE A MOVE MADE BY
+ *      MOVE
+ *
+ * The original comments are wrong about which bits of data are being moved,
+ * but I kept them. The code is right.
+ */
+static void umove() {
+    moven = sp2->m_moven;                   // MOVEN
+    piece = sp2->m_piece;                   // CAPTURED PIECE
+    board[piece] = sp2->m_src;              // FROM SQUARE
+    square = board[sp2->m_captured] = sp2->m_dest; // PIECE, TO SQUARE
+    sp2++;
+}
+
+
+/* * */
+
 #define S_ILLEGAL 1
 #define S_CAPTURE 2
 #define S_ILLCHK 4
@@ -116,8 +186,6 @@ static int cmove();
 static int spx(int s);
 static void reset();
 static void genrm();
-static void umove();
-static void move();
 static int ckmate(int a);
 static int go();
 static int mv2();
@@ -135,29 +203,9 @@ extern const uint8_t movex[17];
 extern const uint8_t points[16];
 extern const uint8_t opning[28];
 
-struct Move {
-    uint8_t m_moven;        // saved state of moven global variable
-    int8_t  m_piece;        // index of piece that was moved
-    uint8_t m_src;          // where m_piece was before this move
-    uint8_t m_captured;     // index of piece that was captured
-    uint8_t m_dest;         // where m_piece was moved to
-};
-
-static int8_t piece;
-static uint8_t square;
 static int8_t inchek;
 static int8_t state;
-static uint8_t moven, rev;
-
-/*
- * This is something of a mystery. In the original program, the stack could
- * grow to at most 3 moves before overwriting REV and other variables.  But the
- * program pretty clearly recurses... I dunno, setting it to 8 is a stopgap
- * until I understand what's going on.
- */
-#define STACK_SIZE 8
-static Move stack[STACK_SIZE];  // [$B9:$C8]
-Move *sp2;
+static uint8_t rev;
 
 uint8_t wcap0;
 uint8_t capstack[5];
@@ -553,49 +601,6 @@ void genrm() {
     gnm();                                  // GENERATE MOVES
     reverse();                              // REVERSE BACK
     umove();
-}
-
-/*
- *      ROUTINE TO UNMAKE A MOVE MADE BY
- *      MOVE
- *
- * The original comments are wrong about which bits of data are being moved,
- * but I kept them. The code is right.
- */
-void umove() {
-    moven = sp2->m_moven;                   // MOVEN
-    piece = sp2->m_piece;                   // CAPTURED PIECE
-    board[piece] = sp2->m_src;              // FROM SQUARE
-    square = board[sp2->m_captured] = sp2->m_dest; // PIECE, TO SQUARE
-    sp2++;
-}
-
-/*
- *      THIS ROUTINE MOVES PIECE
- *      TO SQUARE, PARAMETERS
- *      ARE SAVED IN A STACK TO UNMAKE
- *      THE MOVE LATER
- */
-void move() {
-    assert(sp2 > stack);
-    sp2--;
-
-    sp2->m_dest = square;                   // TO SQUARE
-    int x = 0x1f;
-
-    do {
-        if (square == board[x])             // CHECK FOR
-            break;                          // CAPTURE
-        x--;
-    } while (x >= 0);
-
-    board[x] = CAPTURED;
-    sp2->m_captured = x;                    // CAPTURED PIECE
-    int src = board[piece];
-    board[piece] = square;                  // FROM
-    sp2->m_src = src;                       // SQUARE
-    sp2->m_piece = piece;                   // PIECE
-    sp2->m_moven = moven;                   // MOVEN
 }
 
 /*
