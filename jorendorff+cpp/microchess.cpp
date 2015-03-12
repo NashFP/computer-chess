@@ -396,11 +396,16 @@ static const uint8_t points[16] = {
  * ONE FOR NEXT STEP
  *
  */
-static void gnmx(int x) {
-    assert(x == 16 || x == 20);
+static void gnmx(int st) {
+    assert(st == 0 || st == 4 || st == 12);
+    state = st;
     for (int i = 0; i < 5; i++)             // CLEAR COUNTERS
         capstack[i] = 0;
-    for (int i = 0; i < ((x - 4) >> 2); i++) {
+
+    // If we are preparing to run in state 12, clear the state-12 counters
+    // first.  Otherwise, leave them. They contain data we're going to need.
+    int n = st == 12 ? 4 : 3;
+    for (int i = 0; i < n; i++) {
         State &st = states[i];
         st.s_mob = 0;
         st.s_maxc = 0;
@@ -514,10 +519,10 @@ static void stratgy() {
  */
 static void on4() {
     wcap0 = xmaxc;                          // SAVE ACTUAL CAPTURE
-    state = 0;                              // STATE=0
+                                            // STATE=0
     move();                                 // GENERATE
     reverse();                              // IMMEDIATE
-    gnmx(16);                               // REPLY MOVES
+    gnmx(0);                                // REPLY MOVES
     reverse();
 
     state = 8;                              // STATE=8; GENERATE
@@ -664,11 +669,10 @@ static int go() {
         }
         omove = -1;                         // *ADD - STOP CANNED MOVES. FLAG OPENING FINISHED
     }
-    state = 0x0c;                           // STATE=C
+                                            // STATE=C
     bestv = 0x0c;                           // CLEAR BESTV
-    gnmx(20);                               // GENERATE P MOVES
-    state = 4;                              // STATE=4  GENERATE AND
-    gnmx(16);                               // TEST AVAILABLE MOVES
+    gnmx(12);                               // GENERATE P MOVES
+    gnmx(4);                                // STATE=4  GENERATE AND TEST AVAILABLE MOVES
     if (bestv < 0x0f)                       // GET BEST MOVE. IF NONE
         return mate();                      // UH OH!
     return mv2();
