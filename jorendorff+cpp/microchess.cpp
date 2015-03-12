@@ -445,15 +445,15 @@ static void tree(int s) {
 
 static void nocount(int s) {
     assert(s == 0 || s == S_CAPTURE);
-    if (state != ST_CHKCHK) {
-        tree(s);
-    } else {
+    if (state == ST_CHKCHK) {
         //
         // DETERMINE IF THE KING CAN BE
         // TAKEN, USED BY CHKCHK
         //
-        if (bk[0] == square)                // IS KING IN CHECK?
+        if (square == bk[0])                // IS KING IN CHECK?
             inchek = true;                  // SET INCHEK=0 IF IT IS
+    } else {
+        tree(s);
     }
 }
 
