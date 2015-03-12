@@ -443,20 +443,6 @@ static void tree(int s) {
     state++;
 }
 
-static void nocount(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-    if (state == ST_CHKCHK) {
-        //
-        // DETERMINE IF THE KING CAN BE
-        // TAKEN, USED BY CHKCHK
-        //
-        if (square == bk[0])                // IS KING IN CHECK?
-            inchek = true;                  // SET INCHEK=0 IF IT IS
-    } else {
-        tree(s);
-    }
-}
-
 /*
  * After examining all possible outcomes of a move (piece, square)
  * and accumulating counts, compute a score for that move.
@@ -548,8 +534,16 @@ static void on4() {
  */
 static void janus(int s) {
     assert(s == 0 || s == S_CAPTURE);
-    if (state < 0) {
-        nocount(s);
+    if (state == ST_CHKCHK) {
+        //
+        // DETERMINE IF THE KING CAN BE
+        // TAKEN, USED BY CHKCHK
+        //
+        if (square == bk[0])                // IS KING IN CHECK?
+            inchek = true;                  // SET INCHEK=0 IF IT IS
+        return;
+    } else if (state < 0) {
+        tree(s);
         return;
     }
 
