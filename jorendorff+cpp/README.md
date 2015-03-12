@@ -74,10 +74,17 @@ zero-indexed and the columns are numbered in the opposite
 direction&mdash;so this corresponds to square **c2**.
 
 The main AI starts at NOOPEN. I haven't understood the whole thing.
-But I *think* it's a simple minmax. I think it looks ahead extra moves
-in scenarios involving a capture.
+Certainly there is a routine, GNM, that simply finds every possible move,
+and calls another routine JANUS, for each one. JANUS can do
+several different things; its behavior is determined by a STATE variable.
+GNM is thus a utility that the AI uses in several different ways.
 
-Every minmax needs a scoring algorithm, to estimate the desirability of
+The AI certainly has the ability to look ahead at capture exchanges,
+examining that part of the game tree depth-first. (This looking-ahead is
+what JANUS does when STATE is between -5 and 0.) But that is only part
+of the overall strategy.
+
+Every chess AI needs a scoring algorithm, to estimate the desirability of
 a possible future board state. Microchess has a fairly fancy one, but
 again I'm fuzzy on the details. A few things are clear: it prefers board
 states where white pieces have lots of available moves, and particularly
