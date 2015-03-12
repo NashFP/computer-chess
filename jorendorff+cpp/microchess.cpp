@@ -458,34 +458,13 @@ static void nocount(int s) {
 }
 
 /*
- *      CONTINUATION OF SUB STRATGY
- *      -CHECKS FOR CHECK OR CHECKMATE
- *      AND ASSIGNS VALUE TO MOVE
+ * After examining all possible outcomes of a move (piece, square)
+ * and accumulating counts, compute a score for that move.
+ *
+ * If the score is better than the best score available so far this turn,
+ * update (bestv, bestp, bestm).
  */
-static int ckmate(int a) {
-    if (bmaxc == points[0])                 // CAN BLK CAP MY KING?
-        a = 0;                              // GULP! DUMB MOVE!
-    else if (bmob == 0 && wmaxp == 0)       // IS BLACK UNABLE TO MOVE AND KING IN CH?
-        a = 0xff;                           // YES! MATE
-
-    state = 4;                              // RESTORE STATE=4
-
-    //
-    // THE VALUE OF THE MOVE (IN ACCU)
-    // IS COMPARED TO THE BEST MOVE AND
-    // REPLACES IT IF IT IS BETTER
-    //
-    if (a > bestv) {                        // IS THIS BEST MOVE SO FAR?
-        bestv = a;                          // YES!
-        bestp = piece;                      // SAVE IT
-        bestm = square;                     // FLASH DISPLAY
-    }
-    putchar('.');                           // print ... instead of flashing disp
-    fflush(stdout);                         // print . and return
-    return a;
-}
-
-static int stratgy() {
+static void stratgy() {
     int a = 0x80;
 
     a += wmob + wmaxc + wcc                 // PARAMETERS WITH WEIGHT OF 0.25
@@ -513,7 +492,31 @@ static int stratgy() {
     {
         a += 2;
     }
-    return ckmate(a);                        // CONTINUE
+
+    //
+    //      CONTINUATION OF SUB STRATGY
+    //      -CHECKS FOR CHECK OR CHECKMATE
+    //      AND ASSIGNS VALUE TO MOVE
+    //
+    if (bmaxc == points[0])                 // CAN BLK CAP MY KING?
+        a = 0;                              // GULP! DUMB MOVE!
+    else if (bmob == 0 && wmaxp == 0)       // IS BLACK UNABLE TO MOVE AND KING IN CH?
+        a = 0xff;                           // YES! MATE
+
+    state = 4;                              // RESTORE STATE=4
+
+    //
+    //      THE VALUE OF THE MOVE (IN ACCU)
+    //      IS COMPARED TO THE BEST MOVE AND
+    //      REPLACES IT IF IT IS BETTER
+    //
+    if (a > bestv) {                        // IS THIS BEST MOVE SO FAR?
+        bestv = a;                          // YES!
+        bestp = piece;                      // SAVE IT
+        bestm = square;                     // FLASH DISPLAY
+    }
+    putchar('.');                           // print ... instead of flashing disp
+    fflush(stdout);                         // print . and return
 }
 
 /*
