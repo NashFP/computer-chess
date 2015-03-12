@@ -390,6 +390,12 @@ static const uint8_t points[16] = {
     2, 2, 2, 2, 2, 2, 2, 2
 };
 
+/*
+ * GENERATE ALL MOVES FOR ONE
+ * SIDE, CALL JANUS AFTER EACH
+ * ONE FOR NEXT STEP
+ *
+ */
 static void gnmx(int x) {
     assert(x == 16 || x == 20);
     for (int i = 0; i < 5; i++)             // CLEAR COUNTERS
@@ -401,16 +407,9 @@ static void gnmx(int x) {
         st.s_cc = 0;
         st.s_pcap = 0;
     }
+
     gnm();
 }
-
-/*
- * GENERATE ALL MOVES FOR ONE
- * SIDE, CALL JANUS AFTER EACH
- * ONE FOR NEXT STEP
- *
- */
-static void gnmz() { gnmx(16); }
 
 static void genrm() {
     move();                                 // MAKE MOVE
@@ -518,7 +517,7 @@ static void on4() {
     state = 0;                              // STATE=0
     move();                                 // GENERATE
     reverse();                              // IMMEDIATE
-    gnmz();                                 // REPLY MOVES
+    gnmx(16);                               // REPLY MOVES
     reverse();
 
     state = 8;                              // STATE=8; GENERATE
@@ -669,7 +668,7 @@ static int go() {
     bestv = 0x0c;                           // CLEAR BESTV
     gnmx(20);                               // GENERATE P MOVES
     state = 4;                              // STATE=4  GENERATE AND
-    gnmz();                                 // TEST AVAILABLE MOVES
+    gnmx(16);                               // TEST AVAILABLE MOVES
     if (bestv < 0x0f)                       // GET BEST MOVE. IF NONE
         return mate();                      // UH OH!
     return mv2();
