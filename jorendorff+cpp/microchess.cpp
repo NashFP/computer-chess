@@ -176,7 +176,7 @@ static const uint8_t movex[17] = {
     0xdf, 0xe1, 0xee, 0xf2, 0x12, 0x03, 0x1f, 0x21
 };
 
-static void janus(int s);
+static void janus(bool capture);
 static int chkchk(int s);
 
 #define S_ILLEGAL 1
@@ -240,8 +240,10 @@ static void reset() {
  */
 static bool sngmv() {
     int s = cmove();
-    if (!(s & S_ILLEGAL))                   // CALC MOVE -IF LEGAL
-        janus(s);                           // -EVALUATE
+    if (!(s & S_ILLEGAL)) {                 // CALC MOVE -IF LEGAL
+        assert(s == 0 || s == S_CAPTURE);
+        janus(s != 0);                      // -EVALUATE
+    }
     reset();
     return --moven != 0;
 }
@@ -261,7 +263,8 @@ static bool line() {
         if (!(s & S_ILLCHK) || (s & S_CAPTURE)) {  // NO CHK, NOCAP
             if (s & S_ILLEGAL)              // RETURN
                 break;
-            janus(s);
+            assert(s == 0 || s == S_CAPTURE);
+            janus(s != 0);
             if (s & S_CAPTURE)              // NOT A CAP
                 break;
         }
@@ -276,7 +279,7 @@ static bool line() {
  *
  * For each legal move that white can play, set 'piece' to the index of the
  * piece being moved and 'square' to the destination square, and call
- * janus(S_CAPTURE) if the move is a capture and janus(0) if it is not.
+ * janus(true) if the move is a capture and janus(false) if it is not.
  *
  * This does not consider en passant or castling.
  */
@@ -291,7 +294,8 @@ static void gnm() {
             do {
                 int s = cmove();
                 if ((s & (S_CAPTURE | S_ILLEGAL)) == S_CAPTURE) {  // RIGHT CAP?
-                    janus(s);               // YES
+                    assert(s == 0 || s == S_CAPTURE);
+                    janus(s != 0);          // YES
                 }
                 reset();
             } while (--moven == 5);         // LEFT CAP?
@@ -299,7 +303,8 @@ static void gnm() {
                 int s = cmove();
                 if (s & (S_CAPTURE | S_ILLEGAL))  // AHEAD
                     break;                  // ILLEGAL
-                janus(s);
+                assert(s == 0 || s == S_CAPTURE);
+                janus(s != 0);
             } while ((square & 0xf0) == 0x20);  // GETS TO 3RD RANK?
         } else if (piece >= 6) {            // KNIGHT
             moven = 16;                     // MOVES
@@ -420,12 +425,11 @@ static void genrm() {
  *      A TRIAL MOVE, GENERATE REPLIES &
  *      EVALUATE THE EXCHANGE GAIN/LOSS
  */
-static void tree(int s) {
+static void tree(bool capture) {
     assert(state <= 0);
     assert(state > -5);
-    assert(s == 0 || s == S_CAPTURE);
     assert((square & 0x88) == 0);
-    if (!s)                                 // NO CAP
+    if (!capture)                           // NO CAP
         return;
 
     int y;
@@ -532,27 +536,16 @@ static void on4() {
  *
  *
  */
-static void janus(int s) {
-    assert(s == 0 || s == S_CAPTURE);
-    if (state == ST_CHKCHK) {
-        //
-        // DETERMINE IF THE KING CAN BE
-        // TAKEN, USED BY CHKCHK
-        //
-        if (square == bk[0])                // IS KING IN CHECK?
-            inchek = true;                  // SET INCHEK=0 IF IT IS
-        return;
-    } else if (state < 0) {
-        tree(s);
-        return;
-    }
+static void janus(bool capture) {
+    if (state >= 0) {
+        if (state == 8 && piece == bmaxp && piece != 0)  // IF STATE=8 DO NOT COUNT BLK MAX CAP MOVES FOR WHITE
+            return;
 
-    //
-    //      THIS ROUTINE COUNTS OCCURRENCES
-    //      IT DEPENDS UPON STATE TO INDEX
-    //      THE CORRECT COUNTERS
-    //
-    if (piece == 0 || state != 8 || piece != bmaxp) {  // IF STATE=8 DO NOT COUNT BLK MAX CAP MOVES FOR WHITE
+        //
+        //      THIS ROUTINE COUNTS OCCURRENCES
+        //      IT DEPENDS UPON STATE TO INDEX
+        //      THE CORRECT COUNTERS
+        //
         assert(state >= 0);
         assert(state <= 12);
         assert((state & 3) == 0);
@@ -560,7 +553,7 @@ static void janus(int s) {
         st.s_mob++;                         // MOBILITY
         if (piece == 1)                     //  + QUEEN
             st.s_mob++;                     // FOR TWO
-        if (s & S_CAPTURE) {
+        if (capture) {
             int y = 15;
             while (square != bk[y] && --y >= 0) {}
             assert(y >= 0);
@@ -574,7 +567,16 @@ static void janus(int s) {
         if (state == 4)
             on4();
         else if (state < 4)
-            tree(s);
+            tree(capture);
+    } else if (state == ST_CHKCHK) {
+        //
+        //      DETERMINE IF THE KING CAN BE
+        //      TAKEN, USED BY CHKCHK
+        //
+        if (square == bk[0])                // IS KING IN CHECK?
+            inchek = true;                  // SET INCHEK=0 IF IT IS
+    } else {
+        tree(capture);
     }
 }
 
