@@ -17,15 +17,11 @@ So consider this a benchmark.
     g++ -o microchess microchess.cpp
     ./microchess
 
-The user interface is fantastically primitive:
+The user interface is text-only.
 
-*   Press <kbd>Q</kbd> to quit.
-    (**Don&rsquo;t use <kbd>Ctrl</kbd>+<kbd>C</kbd> to quit.**
-    It will screw up your terminal.)
+*   Type <kbd>Q</kbd> and hit <kbd>Enter</kbd> to quit.
 
-*   Press <kbd>C</kbd> to set up the board.
-
-*   Press <kbd>P</kbd> to tell the computer to take a turn.
+*   Enter <kbd>P</kbd> to tell the computer to take a turn.
     Microchess always plays white.
 
 *   To take your turn,
@@ -34,31 +30,26 @@ The user interface is fantastically primitive:
     then <kbd>Enter</kbd>.
     For example:
 
-         00 01 02 03 04 05 06 07
-        -------------------------
-        |WR|WN|WB|WK|WQ|WB|WN|WR|00
-        -------------------------
-        |WP|WP|WP|  |WP|WP|WP|WP|10
-        -------------------------
-        |  |**|  |**|  |**|  |**|20
-        -------------------------
-        |**|  |**|WP|**|  |**|  |30
-        -------------------------
-        |  |**|  |**|  |**|  |**|40
-        -------------------------
-        |**|  |**|  |**|  |**|  |50
-        -------------------------
-        |BP|BP|BP|BP|BP|BP|BP|BP|60
-        -------------------------
-        |BR|BN|BB|BK|BQ|BB|BN|BR|70
-        -------------------------
-         00 01 02 03 04 05 06 07
+        R N B K Q B N R   1
+        P P P . P P P P   2
+        . . . . . . . .   3
+        . . . P . . . .   4
+        . . . . . . . .   5
+        . . . . . . . .   6
+        p p p p p p p p   7
+        r n b k q b n r   8
 
-    To counter with **e5**, moving the black pawn from square 63 to square
-    43, you'd type <kbd>6343 Enter</kbd>.
+        h g f e d c b a        0F 13 33
+
+    To counter with **e5**, you'd type <kbd>e7e5 Enter</kbd>.
 
     Then type <kbd>P</kbd> and Microchess will respond (with Nf3).
     And so on.
+
+*   There's one more command, <kbd>R</kbd>, which reverses the board.
+    Bizarrely, the letters and numbers around the edges stay where
+    they are &mdash; the way this is implemented is a little weird.
+    The UI ought to compensate, but it doesn&rsquo;t.
 
 
 ## How Microchess works
@@ -109,7 +100,7 @@ moves.
 This is the only way Microchess can castle.
 In fact, because Microchess doesn&rsquo;t really support castling,
 after **8. o-o** the user has to move white's rook manually
-by typing <kbd>0002 Enter</kbd>!
+by typing <kbd>h1f1 Enter</kbd>!
 
 
 ## Bugs in the original?

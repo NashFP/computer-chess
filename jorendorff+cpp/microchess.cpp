@@ -42,19 +42,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
-
-// Comment out the following #define if your OS doesn't have <termios.h>.
-// This will make the user interface rather bizarre, unfortunately!
-#define HAVE_TERMIOS 1
-
-#ifdef HAVE_TERMIOS
-#  include <termios.h>
-#  include <unistd.h>
-#  define GO_KEY '\n'
-#else
-#  define GO_KEY 'G'
-#endif
-
+#include <ctype.h>
 
 /*** Board representation ****************************************************/
 
@@ -587,8 +575,6 @@ static void janus(bool capture) {
 
 /*** Chess AI entry points and scripted opening ******************************/
 
-static void change_terminal(bool raw);
-
 #define dis1 bestp
 #define dis2 bestv
 #define dis3 bestm
@@ -683,64 +669,6 @@ static int go() {
 
 static bool rev = false;
 
-/*
- * Turn the terminal's raw mode on or off.
- *
- * The code Daryl Rictor added so that Microchess could be played over a serial
- * port has the program responding to each keypress as soon as it happens.
- *
- * But on POSIX systems when the terminal is in the default (canonical) mode,
- * input is delivered to the process one line at a time. This function turns
- * off canonical mode, so each keystroke is delivered immediately: getchar()
- * returns as soon as you hit a key.
- *
- * (We also turn off the bits that cause the letters you type to be "echoed",
- * i.e. automatically displayed in your terminal even though the process didn't
- * print anything.)
- *
- * These terminal settings are per-terminal, *not* per-process, and the system
- * doesn't automatically revert our changes when we exit. This means if you
- * exit Microchess by hitting Ctrl+C, your terminal will be screwed up. Fix it
- * with the command `stty sane`.
- */
-static void change_terminal(bool raw) {
-#ifdef HAVE_TERMIOS
-    if (!isatty(STDIN_FILENO))
-        return;
-
-    int flags = ECHO | ECHONL | ICANON;
-    struct termios t;
-    if (tcgetattr(STDIN_FILENO, &t) != 0) {
-        perror("tcgetattr");
-        exit(1);
-    }
-    if (raw)
-        t.c_lflag &= ~flags;                // Turn off flags, enter raw mode.
-    else
-        t.c_lflag |= flags;                 // Turn flags back on before exiting.
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &t) != 0) {
-        perror("tcsetattr");
-        exit(1);
-    }
-#endif
-}
-
-static int kin() {
-    putchar('?');
-    int c = getchar();
-    return c == EOF ? EOF : c & 0x4f;
-}
-
-/*
- *      SUBROUTINE TO ENTER THE
- *      PLAYER'S MOVE
- */
-static void dismv(int8_t a) {
-    dis2 = (dis2 << 4) | (dis3 >> 4);       // ROTATE KEY
-    dis3 = (dis3 << 4) | a;                 // INTO DISPLAY
-    square = dis3;
-}
-
 static void disp() {
     int8_t x = 31;
     while (board[x] != dis2 && --x >= 0) {} // DISPLAY PIECE AT FROM
@@ -748,18 +676,7 @@ static void disp() {
     piece = x;
 }
 
-/*
- *      THE PLAYER'S MOVE IS INPUT
- */
-static void input(int c) {
-    if (c < 8) {                           // A LEGAL SQUARE #
-        dismv(c);
-        disp();
-    }
-}
-
-static const char *cpl = "WWWWWWWWWWWWWWWWBBBBBBBBBBBBBBBBWWWWWWWWWWWWWWWW";
-static const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
+static const char *cph = "KQRRBBNNPPPPPPPPkqrrbbnnpppppppp";
 
 /*
  * The following routines were added to allow text-based board
@@ -767,87 +684,126 @@ static const char *cph = "KQRRBBNNPPPPPPPPKQRRBBNNPPPPPPPP";
  */
 static void pout() {
     putchar('\n');
-    puts("MicroChess (c) 1996-2005 Peter Jennings, www.benlo.com");
-    puts(" 00 01 02 03 04 05 06 07");
-    int y = 0;
-    puts("-------------------------");
 
-    for (;;) {
-        putchar('|');
-        int x;
-        for (x = 31; x >= 0; x--) {
-            if (y == board[x])
-                break;
-        }
+    char bd[8][8];
+    for (int r = 0; r < 8; r++)
+        for (int c = 0; c < 8; c++)
+            bd[r][c] = '.';
 
-        if (x < 0) {                        // empty square
-            char ch = (((y & 1) + ((y >> 4) & 1)) & 1) ? '*' : ' ';
-            putchar(ch);
-            putchar(ch);
-        } else {
-            putchar(rev ? cpl[x + 16] : cpl[x]);  // print piece's color & type
-            putchar(cph[x]);
-        }
-
-        y++;
-        if (y & 8) {                        // have we completed the row?
-            printf("|%02X\n", (unsigned) (y & 0x70));  //jto: looks like a bug!
-            puts("-------------------------");
-            y += 8;                         // point y to beginning of next row
-            if (y == 0x80)                  // was that the last row?
-                break;                      // yes, print the LED values
-        }
+    int flipbit = rev ? 16 : 0;
+    for (int p = 0; p < 32; p++) {
+        uint8_t square = board[p];
+        if ((square & 0x88) == 0)
+            bd[(square >> 4) & 7][square & 7] = cph[p ^ flipbit];
     }
 
-    puts(" 00 01 02 03 04 05 06 07");
-    printf("%02X %02X %02X\n",
+    for (int r = 0; r < 8; r++) {
+        printf("    ");
+        for (int c = 0; c < 8; c++) {
+            putchar(bd[r][c]);
+            putchar(' ');
+        }
+        printf("  %d\n", r + 1);
+    }
+    printf("\n    h g f e d c b a    ");
+
+    printf("    %02X %02X %02X\n",
            (unsigned) (uint8_t) bestp,
            (unsigned) (uint8_t) bestv,
            (unsigned) (uint8_t) bestm);
 }
 
-static int chess() {
-    for (;;) {
-        sp2 = stack + STACK_SIZE;
-        pout();                             // DISPLAY AND
-        int c = kin();                      // GET INPUT KEY IN ACC
-        if (c == 'C') {
-            memcpy(board, setw, 32);        // SET UP BOARD
-            omove = 27;
-            c = 0xcc;
-        } else if (c == 'E') {
-            reverse();                      // REVERSE BOARD IS
-            rev = !rev;                     // TOGGLE REV FLAG
-            c = 0xee;                       // IS
-        } else if (c == 0x40) {             // [P]
-            c = go();
-            if (c == 0)
-                continue;
-        } else if (c == GO_KEY) {
-            move();
-            disp();
-            continue;
-        } else if (c == 0x41) {             // [Q] ***Added to allow game exit***
-            putchar('\n');
-            change_terminal(false);
-            exit(0);
-        } else if (c == '\n') {
-            // do nothing --jto
-            continue;
-        } else {
-            input(c);
-            continue;
-        }
-        dis1 = c;                           // DISPLAY
-        dis2 = c;                           // ACROSS
-        dis3 = c;                           // DISPLAY
-    }
+static void setup() {
+    memcpy(board, setw, 32);        // SET UP BOARD
+    omove = 27;
 }
 
 
+#define LINE_SIZE 256
+
+static int chess() {
+    char line[LINE_SIZE];
+
+    puts("    MicroChess (c) 1996-2005 Peter Jennings, www.benlo.com");
+    setup();
+    dis1 = dis2 = dis3 = 0xcc;
+    pout();
+
+    for (;;) {
+        printf("> ");
+        if (!fgets(line, LINE_SIZE, stdin))
+            return 1;
+
+        int i = 0;
+        while (isspace(line[i]))
+            i++;
+    
+        char c = tolower(line[i]);
+        if (c == 'q') {
+            return 0;
+        } else if (c == 'p') {
+            sp2 = stack + STACK_SIZE;
+            if (go() != 0) {
+                printf("resign\n");
+                dis1 = dis2 = dis3 = 0xff;
+            }
+            pout();
+        } else if (c == 'r') {
+            reverse();                      // REVERSE BOARD IS
+            rev = !rev;                     // TOGGLE REV FLAG
+            dis1 = dis2 = dis3 = 0xee;
+            pout();
+        } else if ('a' <= c && c <= 'h') {
+            int from, to;
+
+            i++;
+            from = 7 - (c - 'a');
+
+            c = line[i++];
+            if (!('1' <= c && c <= '8')) {
+                printf("*** unrecognized command\n");
+                continue;
+            }
+            from |= (c - '1') << 4;
+
+            while (isspace(line[i]) || line[i] == '-')
+                i++;
+
+            c = line[i++];
+            if (!('a' <= c && c <= 'h')) {
+                printf("*** unrecognized command\n");
+                continue;
+            }
+            to = 7 - (c - 'a');
+
+            c = line[i++];
+            if (!('1' <= c && c <= '8')) {
+                printf("*** unrecognized command\n");
+                continue;
+            }
+            to |= (c - '1') << 4;
+
+            while (isspace(line[i]))
+                i++;
+            if (line[i] != '\0') {
+                printf("*** unrecognized command\n");
+                continue;
+            }
+
+            bestv = from;
+            bestm = to;
+            square = dis3;
+            disp();
+            move();
+            sp2 = stack + STACK_SIZE;
+            disp();
+            pout();
+        } else {
+            printf("*** unrecognized command\n");
+        }
+    }
+}
+
 int main() {
-    change_terminal(true);
-    chess();
-    change_terminal(false);
-    return 0;
+    return chess();
 }
