@@ -11,6 +11,7 @@
 
     h g f e d c b a        CC CC CC
 > 
+e2e4
     R N B K Q B N R   1
     P P P . P P P P   2
     . . . . . . . .   3
@@ -33,6 +34,7 @@
 
     h g f e d c b a        FF 63 43
 > 
+g1f3
     R . B K Q B N R   1
     P P P . P P P P   2
     . . N . . . . .   3
@@ -55,6 +57,7 @@
 
     h g f e d c b a        FF 76 55
 > 
+f1c4
     R . . K Q B N R   1
     P P P . P P P P   2
     . . N . . . . .   3
@@ -77,6 +80,7 @@
 
     h g f e d c b a        FF 72 45
 > 
+c2c3
     R . . K Q B N R   1
     P P P . P . P P   2
     . . N . . P . .   3
@@ -99,6 +103,7 @@
 
     h g f e d c b a        FF 71 52
 > 
+d2d4
     R . . K Q B N R   1
     P P P . . . P P   2
     . . N . . P . .   3
@@ -121,6 +126,7 @@
 
     h g f e d c b a        FF 43 34
 > 
+c3d4
     R . . K Q B N R   1
     P P P . . . P P   2
     . . N . . . . .   3
@@ -143,6 +149,7 @@
 
     h g f e d c b a        FF 45 36
 > 
+b1c3
     R . . K Q B . R   1
     P P P . . . P P   2
     . . N . . N . .   3
@@ -165,6 +172,7 @@
 
     h g f e d c b a        FF 52 33
 > 
+e1g1
     R K . . Q B . R   1
     P P P . . . P P   2
     . . N . . N . .   3
@@ -198,6 +206,7 @@
 
     h g f e d c b a        FF 36 25
 > 
+b2c3
     . K R . Q B . R   1
     P P P . . . . P   2
     . . N . . P . .   3
@@ -219,7 +228,8 @@
     r . . k q b . r   8
 
     h g f e d c b a        FF 64 44
-> .................................
+> 
+c4b5
     . K R . Q B . R   1
     P P P . . . . P   2
     . . N . . P . .   3

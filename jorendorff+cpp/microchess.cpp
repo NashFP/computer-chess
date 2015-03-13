@@ -324,6 +324,8 @@ static void gnm() {
  *      ALWAYS DONE
  */
 static int chkchk(int s) {
+    assert(s == 0 || s == S_CAPTURE);
+
     int8_t saved = state;
     state = ST_CHKCHK;
     inchek = false;
@@ -335,7 +337,7 @@ static int chkchk(int s) {
     state = saved;
     if (!inchek)
         return s;                           // NO - SAFE
-    return S_ILLEGAL | S_ILLCHK;            // YES - IN CHK
+    return s | S_ILLEGAL | S_ILLCHK;        // YES - IN CHK
 }
 
 
@@ -497,8 +499,6 @@ static void stratgy() {
         bestp = piece;                      // SAVE IT
         bestm = square;                     // FLASH DISPLAY
     }
-    putchar('.');                           // print ... instead of flashing disp
-    fflush(stdout);                         // print . and return
 }
 
 /*
@@ -579,7 +579,7 @@ static void janus(bool capture) {
 #define dis2 bestv
 #define dis3 bestm
 
-static uint8_t omove;
+static int8_t omove;
 
 /*
  * Microchess knows a 9-move standard canned opening.  This is the opening.
@@ -683,8 +683,6 @@ static const char *cph = "KQRRBBNNPPPPPPPPkqrrbbnnpppppppp";
  * display over a standard RS-232 port.
  */
 static void pout() {
-    putchar('\n');
-
     char bd[8][8];
     for (int r = 0; r < 8; r++)
         for (int c = 0; c < 8; c++)
@@ -721,10 +719,16 @@ static void setup() {
 
 #define LINE_SIZE 256
 
+static void print_square(uint8_t square) {
+    putchar('a' + (7 - (square & 7)));
+    putchar('1' + ((square >> 4) & 7));
+}
+
 static int chess() {
     char line[LINE_SIZE];
 
     puts("    MicroChess (c) 1996-2005 Peter Jennings, www.benlo.com");
+    putchar('\n');
     setup();
     dis1 = dis2 = dis3 = 0xcc;
     pout();
@@ -733,6 +737,7 @@ static int chess() {
         printf("> ");
         if (!fgets(line, LINE_SIZE, stdin))
             return 1;
+        putchar('\n');
 
         int i = 0;
         while (isspace(line[i]))
@@ -746,6 +751,10 @@ static int chess() {
             if (go() != 0) {
                 printf("resign\n");
                 dis1 = dis2 = dis3 = 0xff;
+            } else {
+                print_square(bestv);
+                print_square(bestm);
+                putchar('\n');
             }
             pout();
         } else if (c == 'r') {
