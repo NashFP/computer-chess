@@ -131,13 +131,30 @@ instance Game Reversi where
         me = flipSquare you
     in fromIntegral (count me squares - count you squares)
 
+positional arr you =
+  let rubric = [
+        15, -2,  3,  3,  3,  3, -2, 15,
+        -2, -2, -1, -1, -1, -1, -2, -2,
+         3, -1,  1,  1,  1,  1, -1,  3,
+         3, -1,  1,  1,  1,  1, -1,  3,
+         3, -1,  1,  1,  1,  1, -1,  3,
+         3, -1,  1,  1,  1,  1, -1,  3,
+        -2, -2, -1, -1, -1, -1, -2, -2,
+        15, -2,  3,  3,  3,  3, -2, 15]
+      mul (_, Empty)            = 0
+      mul (value, x) | x == you = -value
+      mul (value, _)            =  value
+  in 0.01 * (sum $ map mul $ zip rubric $ elems arr)
+
+
 heuristic (Reversi arr you) =
   let squares = elems arr
       me = flipSquare you
       yours = count you squares
       mine = count me squares
       delta = fromIntegral (mine - yours)
-  in if yours + mine < 40 then -0.01 * delta           -- opening: minimize
+  in if yours + mine < 15 then -0.01 * delta           -- opening: minimize
+     else if yours + mine < 45 then positional arr you -- midgame: play positionally
      else 0.01 * delta                                 -- endgame: maximize
 
 reversiSmartyPantsAI = bestMoveWithDepthLimit heuristic 4
