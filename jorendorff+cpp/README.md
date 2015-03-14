@@ -1,6 +1,7 @@
 # Microchess in C++
 
-This directory contains a C++ port of Microchess,
+This directory contains a C++ port of
+[Microchess](https://chessprogramming.wikispaces.com/MicroChess),
 a simple chess-playing program originally written for the
 [KIM-1](http://www.6502.org/trainers/buildkim/kim.htm),
 the first computer developed by Commodore.
@@ -11,13 +12,19 @@ But I'll make up for that later.
 In any case, all our chess-playing programs need something to play against.
 So consider this a benchmark.
 
+&ldquo;As can be seen, MICROCHESS is only the beginning&rdquo;  
+&mdash;Peter Jennings, the MicroChess Manual
+
+
 
 ## How to play
 
     g++ -o microchess microchess.cpp
     ./microchess
 
-The user interface is text-only.
+I wrote the user interface.
+It's text-only, but if you think that&rsquo;s primitive, consider that
+Microchess in its original form communicated through seven-segment displays.
 
 *   Type <kbd>Q</kbd> and hit <kbd>Enter</kbd> to quit.
 
@@ -49,10 +56,20 @@ The user interface is text-only.
 *   There's one more command, <kbd>R</kbd>, which reverses the board.
     Bizarrely, the letters and numbers around the edges stay where
     they are &mdash; the way this is implemented is a little weird.
-    The UI ought to compensate, but it doesn&rsquo;t.
+    It actually reverses the positions of all the pieces in memory.
+    (The UI maybe ought to compensate, but it doesn&rsquo;t.)
 
 
 ## How Microchess works
+
+Microchess originally sold on cassette tape for $5,
+and for that price you got not only the software but a
+[37-page manual](http://archive.computerhistory.org/projects/chess/related_materials/text/4-1.MicroChess_%20Manual_for_6502.Micro-Ware/MicroChessManual.PETER_JENNINGS.062303071.sm.pdf)
+containing not only instructions on how to play
+but a fairly technical explanation of the algorithm.
+
+I didn&rsquo;t read it all, so what I know is mainly from looking at the code.
+Here are the basics.
 
 The board is represented by a 32-byte array called BOARD. Each byte is
 location of one of the pieces or pawns in the game, or $CC if the piece
@@ -64,43 +81,86 @@ differently from standard chess notation&mdash;they&rsquo;re
 zero-indexed and the columns are numbered in the opposite
 direction&mdash;so this corresponds to square **c2**.
 
-The main AI starts at NOOPEN. I haven't understood the whole thing.
-Certainly there is a routine, GNM, that simply finds every possible move,
-and calls another routine JANUS, for each one. JANUS can do
-several different things; its behavior is determined by a STATE variable.
-GNM is thus a utility that the AI uses in several different ways.
+The main AI starts at NOOPEN. It's rather bewildering; here are the
+parts that make sense to me:
 
-The AI certainly has the ability to look ahead at capture exchanges,
-examining that part of the game tree depth-first. (This looking-ahead is
-what JANUS does when STATE is between -5 and 0.) But that is only part
-of the overall strategy.
+*   There is a routine, GNM, that simply finds every possible move,
+    and calls another routine JANUS, for each one.
 
-Every chess AI needs a scoring algorithm, to estimate the desirability of
-a possible future board state. Microchess has a fairly fancy one, but
-again I'm fuzzy on the details. A few things are clear: it prefers board
-states where white pieces have lots of available moves, and particularly
-where the white queen is mobile. And of course it likes capturing
-pieces.
+    In other words, it's `map availableMoves JANUS`.
 
-One more thing. Microchess also conatins a script for one standard
-opening.  If you let Microchess play white, it'll open with **e4**, and
-if you play the black moves listed below, Microchess plays the white
-moves.
+    JANUS can do several different things; its behavior is determined by
+    the variable STATE. GNM is thus a utility that the AI uses in
+    several different ways. The poor man's higher-order function.
 
-1.  e4      e5      (<kbd>6343</kbd>)
-2.  Nf3     Nc6     (<kbd>7655</kbd>)
-3.  Bc4     Bc5     (<kbd>7245</kbd>)
-4.  c3      Nf6     (<kbd>7152</kbd>)
-5.  d4      exd4    (<kbd>4334</kbd>)
-6.  cxd4    Bb4+    (<kbd>4536</kbd>)
-7.  Nc3     Nxe4    (<kbd>5233</kbd>)
-8.  o-o     Bxc3    (<kbd>3625</kbd>)
+*   The AI has the ability to look ahead at capture exchanges, examining
+    that part of the game tree depth-first. (This looking-ahead is what
+    JANUS does when STATE is between -5 and 0.)  From the manual:
+
+    > **Exchange counts** are used to analyse the effect of the
+    > potential exchange combinations. Each count reflects the maximum
+    > number of points capturable at each level of an exchange
+    > combination. Capture chains are halted by pawn captures, king
+    > captures, or by reaching a limit of three captures per
+    > side.
+
+*   Every chess AI needs a scoring algorithm, to compare the possible
+    moves and decide which is best. Microchess has a fancy one. It likes
+    for its pieces to have lots of available moves, and particularly for
+    the queen to be mobile. It values attacking its opponent&rsquo;s
+    high-value pieces. And it values attacking a large total value of
+    material (it will totally fork your pieces with a knight given the
+    chance).
+
+Microchess does *not* contain a general minimax algorithm. From the
+manual:
+
+> With the exception of the capture tree, the MICROCHESS program
+> analyses  in  full only one move for each side beyond the move
+> it will make.  It  is  possible  to  use  the  same  recursive
+> technique  used  by  TREE  to  carry  out a full analysis to a
+> further depth.  To do this would require a routine to  analyse
+> and evaluate each intermediate position arrived at.  Sequences
+> of  possible positions with positive values for computer moves
+> and negative values for opponent's moves can be summed to give
+> the total long term value of each  currently  available  move.
+
+Even this is not a description of minimax, as it contemplates move
+values being "summed" rather than the one best move being selected.
+
+> In  order to be time efficient, this analysis can be performed
+> on a subset of the available continuations selected by a quick
+> static analysis.  In addition,  a  system  of  'tree  pruning'
+> should  be  implemented  to  prevent  long excursions down low
+> valued  branches.   Programmers  embarking  on  this  type  of
+> program should bear in mind that from an average position with
+> 50  available  moves  per  side,  a  total  of  15.625 billion
+> sequences are generated in three moves per side.
+
+(It&rsquo;s true: 50<sup>6</sup> is 15.625 billion.)
+
+**Opening.** One more cool thing. Microchess also conatins a script for
+one standard opening.  If you let Microchess play white, it'll open with
+**e4**, and if you play the black moves listed below, Microchess plays
+the white moves.
+
+1.  e4      e5      (<kbd>e7e5</kbd>)
+2.  Nf3     Nc6     (<kbd>b8c6</kbd>)
+3.  Bc4     Bc5     (<kbd>f8c5</kbd>)
+4.  c3      Nf6     (<kbd>g8f6</kbd>)
+5.  d4      exd4    (<kbd>e5d4</kbd>)
+6.  cxd4    Bb4+    (<kbd>c5b4</kbd>)
+7.  Nc3     Nxe4    (<kbd>f6e4</kbd>)
+8.  o-o     Bxc3    (<kbd>b4c3</kbd>)
 9.  bxc3
 
 This is the only way Microchess can castle.
 In fact, because Microchess doesn&rsquo;t really support castling,
 after **8. o-o** the user has to move white's rook manually
 by typing <kbd>h1f1 Enter</kbd>!
+
+The whole opening is encoded in 28 bytes, and the manual explains
+how to replace this opening with four others.
 
 
 ## Bugs in the original?
