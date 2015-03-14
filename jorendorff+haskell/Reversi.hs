@@ -89,21 +89,28 @@ reversiApplyMove (Reversi arr turn) (MoveAt pt) =
       arr' = arr // [(j, turn) | j <- places]
   in Reversi arr' (flipSquare turn)
 
--- Super lame implementation, no elegance whatsoever
-reversiMoves (Reversi arr turn) =
-  let
-    canCapture k = not $ null $ captureIndexes arr turn $ indexToPoint k
-    emptySquares = filter (\ x -> arr ! x == Empty) $ [0 .. sizeSq - 1]
-    -- All legal capturing moves.
-    capturingMoves = map (MoveAt . indexToPoint) $ filter canCapture emptySquares
+emptySquares arr = filter (\ x -> arr ! x == Empty) $ [0 .. sizeSq - 1]
 
+canCapture (Reversi arr turn) k =
+  not $ null $ captureIndexes arr turn $ indexToPoint k
+
+capturingMoves g empties =
+  map (MoveAt . indexToPoint) $ filter (canCapture g) $ empties
+
+-- Super lame implementation, no elegance whatsoever
+reversiMoves g@(Reversi arr turn) =
+  let
+    empties = emptySquares arr
+    caps = capturingMoves g empties
   -- BUG: it is possible for both players to have no legal moves, in which case
   -- the game should end instead of both players passing forever.
-  in if null emptySquares
+  in if null empties
      then []
-     else if null capturingMoves
-     then [Pass]  -- allow the player to pass
-     else capturingMoves
+     else if not (null caps)
+          then caps
+          else if null (capturingMoves (Reversi arr (flipSquare turn)) empties)
+               then []  -- neither player has any moves
+               else [Pass]  -- other player has a move; this player must pass
 
 count x lst = length $ filter (== x) lst
 
