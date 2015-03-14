@@ -41,6 +41,7 @@ instance Read ReversiMove where
                    then return (MoveAt (x, y - 1), etc)
                    else []
     _ -> []
+  readsPrec _ _ = []
 
 pointToIndex (x, y) = y * size + x
 indexToPoint k = (k `mod` size, k `div` size)
