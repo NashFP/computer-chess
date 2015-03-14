@@ -1,0 +1,6 @@
+*~
+*.o
+*.hi
+jorendorff+haskell/Reversi
+jorendorff+haskell/MinimaxDemo
+jorendorff+cpp/microchess
