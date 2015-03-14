@@ -144,7 +144,7 @@ positional arr you =
       mul (_, Empty)            = 0
       mul (value, x) | x == you = -value
       mul (value, _)            =  value
-  in 0.01 * (sum $ map mul $ zip rubric $ elems arr)
+  in 0.005 * (sum $ map mul $ zip rubric $ elems arr)
 
 
 heuristic (Reversi arr you) =
@@ -153,7 +153,7 @@ heuristic (Reversi arr you) =
       yours = count you squares
       mine = count me squares
       delta = fromIntegral (mine - yours)
-  in if yours + mine < 15 then -0.01 * delta           -- opening: minimize
+  in if yours + mine < 15 then -0.0025 * delta         -- opening: minimize
      else if yours + mine < 45 then positional arr you -- midgame: play positionally
      else 0.01 * delta                                 -- endgame: maximize
 
