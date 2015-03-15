@@ -50,5 +50,5 @@ Want to play against the computer?
 
 The coolest example I have right now is `Reversi.hs`; use these commands:
 
-    ghc Reversi
+    ghc -O Reversi
     ./Reversi
