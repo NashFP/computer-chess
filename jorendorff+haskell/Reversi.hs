@@ -159,5 +159,5 @@ heuristic (Reversi arr you) =
 
 reversiSmartyPantsAI = bestMoveWithDepthLimit heuristic 4
 
-main = playHumanVsComputer reversiSmartyPantsAI (start :: Reversi)
+main = playHumanVsComputer reversiSmartyPantsAI start
 
