@@ -735,6 +735,7 @@ static int chess() {
 
     for (;;) {
         printf("> ");
+        fflush(stdout);
         if (!fgets(line, LINE_SIZE, stdin))
             return 1;
         putchar('\n');
