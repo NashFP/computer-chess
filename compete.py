@@ -13,6 +13,7 @@ class ChessPlayingProcess:
         # line-by-line on your terminal. When that happens with two chessboards
         # it can be pretty hard to tell what's going on.
         time.sleep(0.5)
+        print("*> starting process: {}".format(' '.join(cmd)))
         self.process = subprocess.Popen(cmd,
                                         bufsize=1, universal_newlines=True,
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -27,26 +28,31 @@ class ChessPlayingProcess:
             self.q.put(line)
         self.q.put(None)
 
+    def parse_move(self, line):
+        line = line.rstrip()
+        if line == "" or line == ">" or line.startswith(("    ", "\t")):
+            return None
+
+        m = re.match(r'^(?:.*:)?\s*([a-h][1-8][a-h][1-8][qnrb]?|O-O|O-O-O|resign)$', line)
+        if m is not None:
+            should_close = False
+            return m.group(1)
+        print("*> WARNING: ignoring the line {!r} since it doesn't match".format(line))
+        return None
+
     def _read_move(self):
         """ Read lines from q until one matches the pattern. Return the move. """
 
         time.sleep(0.5)
-        should_close = True
 
         while True:
             line = self.q.get()
             if line is None:
                 break
 
-            line = line.rstrip()
-            if line == "" or line == ">" or line.startswith(("    ", "\t")):
-                continue
-
-            m = re.match(r'^(?:.*:)?\s*([a-h][1-8][a-h][1-8]|O-O|O-O-O|resign)$', line)
-            if m is not None:
-                should_close = False
-                return m.group(1)
-            print("*> WARNING: ignoring the line {!r} since it doesn't match".format(line))
+            move = self.parse_move(line)
+            if move is not None:
+                return move
 
         # End of input without a move. Either the game is over, and our reply
         # doesn't matter; or it's a bug and we treat as resignation.
@@ -63,16 +69,19 @@ class MicrochessWhite(ChessPlayingProcess):
         self.firstMove = True
 
     def play(self, move):
-        if self.firstMove:
-            assert move is None
-            self.firstMove = False
+        if move == "resign":
+            self.send("q")
         else:
-            # TODO - if this move is en passant or castling, we could paper over
-            # Microchess's simplicity here; if promotion, we should probably
-            # forfeit.
-            self.send(move)
+            if self.firstMove:
+                assert move is None
+                self.firstMove = False
+            else:
+                # TODO - if this move is en passant or castling, we could paper over
+                # Microchess's simplicity here; if promotion, we should probably
+                # forfeit.
+                self.send(move)
+            self.send("p")  # hey microchess it is your turn
 
-        self.send("p")  # hey microchess it is your turn
         return self._read_move()
 
 class JorendorffHaskellBlack(ChessPlayingProcess):
@@ -94,14 +103,25 @@ class JorendorffHaskellBlack(ChessPlayingProcess):
             print("*> reply translated to:", reply)
         return reply
 
+    def parse_move(self, line):
+        line = line.rstrip()
+        line = re.sub(r"^your turn>.*$", ">", line)
+        if line == "game over":
+            line = "    game over"
+        if line == "you win":
+            line = "resign"
+        return ChessPlayingProcess.parse_move(self, line)
+
 def play(white, black):
-    lastMove = None
+    # Puzzle #1: Do you see anything wrong with this algorithm?
+    # Puzzle #2: Why is it that way?
+    blackMove = None
     while 1:
-        lastMove = white.play(lastMove)
-        if lastMove == "resign":
+        whiteMove = white.play(blackMove)
+        if blackMove == "resign":
             break
-        lastMove = black.play(lastMove)
-        if lastMove == "resign":
+        blackMove = black.play(whiteMove)
+        if whiteMove == "resign":
             break
 
 play(MicrochessWhite(), JorendorffHaskellBlack())
