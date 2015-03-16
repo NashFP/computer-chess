@@ -59,6 +59,21 @@ Microchess in its original form communicated through seven-segment displays.
     It actually reverses the positions of all the pieces in memory.
     (The UI maybe ought to compensate, but it doesn&rsquo;t.)
 
+Microchess peculiarities:
+
+*   Microchess doesn't enforce any rules whatsoever.
+    You can move your pieces in illegal ways.
+    You can take six turns in a row.
+    You can move the computer's pieces.
+
+*   Microchess does not support castling, *en passant*, or promotion.
+
+    You can castle anyway, simply by moving your king and rook to the
+    appropriate squares, and capture *en passant* by moving your pawn
+    first on top of the opposing pawn and then to the square where it
+    should go. There is no way to promote, though.
+
+
 
 ## How Microchess works
 
@@ -87,7 +102,7 @@ parts that make sense to me:
 *   There is a routine, GNM, that simply finds every possible move,
     and calls another routine JANUS, for each one.
 
-    In other words, it's `map availableMoves JANUS`.
+    In other words, it's `map JANUS availableMoves`.
 
     JANUS can do several different things; its behavior is determined by
     the variable STATE. GNM is thus a utility that the AI uses in
