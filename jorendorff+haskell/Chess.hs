@@ -7,9 +7,10 @@ import Data.Word
 import Data.List
 import Vs
 
--- TODO castling, en passant, promotion
+-- TODO castling, en passant
 
 data ChessColor = Black | White
+  deriving Eq
 
 data Chessboard = Chessboard {
   bPawns   :: Word64,
@@ -31,6 +32,7 @@ allBlackPieces g = bPawns g .|. bKnights g .|. bBishops g .|. bRooks g .|. bKing
 --- Printing chessboards ------------------------------------------------------
 
 data ChessPiece = King | Queen | Rook | Knight | Bishop | Pawn
+  deriving Eq
 
 whatsAt g col row =
   let b = shiftL (1 :: Word64) (8 * row + col)
@@ -110,10 +112,11 @@ flipBits u =
 
 --- Reading and writing moves -------------------------------------------------
 
-data ChessMove = ChessMove Word64 Word64
+-- The optional piece at the end here is for pawn promotion.
+data ChessMove = ChessMove Word64 Word64 (Maybe ChessPiece)
   deriving Eq
 
-flipMove (ChessMove from to) = ChessMove (flipBits from) (flipBits to)
+flipMove (ChessMove from to promote) = ChessMove (flipBits from) (flipBits to) promote
 
 -- This only works for words with a single bit set.
 log2OfBit x = countBit x 0xffffffff00000000 32 .|.
@@ -131,7 +134,13 @@ bitToChars b =
   in ["abcdefgh" !! col, "12345678" !! row]
 
 instance Show ChessMove where
-  show (ChessMove from to) = bitToChars from ++ bitToChars to
+  show (ChessMove from to promote) =
+    bitToChars from ++ bitToChars to ++ case promote of
+      Nothing     -> ""
+      Just Queen  -> "q"
+      Just Knight -> "n"
+      Just Rook   -> "r"
+      Just Bishop -> "b"
 
 charsToBit :: Char -> Char -> Maybe Word64
 charsToBit c r =
@@ -143,7 +152,12 @@ charsToBit c r =
 
 instance Read ChessMove where
   readsPrec _ (cf:rf:ct:rt:rest) = case (charsToBit cf rf, charsToBit ct rt) of
-    (Just from, Just to) -> [(ChessMove from to, rest)]
+    (Just from, Just to) -> case rest of
+      'q':rest' -> [(ChessMove from to (Just Queen), rest')]
+      'n':rest' -> [(ChessMove from to (Just Knight), rest')]
+      'r':rest' -> [(ChessMove from to (Just Rook), rest')]
+      'b':rest' -> [(ChessMove from to (Just Bishop), rest')]
+      _ -> [(ChessMove from to Nothing, rest)]
     _ -> []
   readsPrec _ _ = []
 
@@ -227,11 +241,11 @@ whiteMoves g =
       let after :: Word64
           after = shift b shiftAmount
       in if (after .&. whitePieces) == 0
-         then [ChessMove b after]
+         then [ChessMove b after Nothing]
          else []
 
     listRayMovesByDir :: Word64 -> (Int, Word64) -> [ChessMove]
-    listRayMovesByDir b (shiftAmount, mask) = [ChessMove b x | x <- stoppingPlaces b]
+    listRayMovesByDir b (shiftAmount, mask) = [ChessMove b x Nothing | x <- stoppingPlaces b]
       where stoppingPlaces c = if c .&. mask == 0
                                then []
                                else let c' = shift c shiftAmount
@@ -247,9 +261,9 @@ whiteMoves g =
     listPawnMoves b =
       let
         dest1 = shiftL b 8
-        move1 = ChessMove b dest1
+        move1 = ChessMove b dest1 Nothing
         dest2 = shiftL dest1 8
-        move2 = ChessMove b dest2
+        move2 = ChessMove b dest2 Nothing
         pawnForwardMoves =
           if allPieces .&. dest1 == 0
           then if b .&. 0x000000000000ff00 /= 0  -- pawn is in row 2
@@ -260,10 +274,15 @@ whiteMoves g =
         listPawnCaptures (shiftAmount, mask) =
           let dest = shift b shiftAmount
           in if b .&. mask /= 0  &&  dest .&. blackPieces /= 0
-             then [ChessMove b dest]
+             then [ChessMove b dest Nothing]
              else []
         pawnCaptures = concatMap listPawnCaptures whitePawnCaptureDirs
-      in pawnForwardMoves ++ pawnCaptures
+        movesWithoutPromotion = pawnForwardMoves ++ pawnCaptures
+        promote (ChessMove orig dest _) =
+          [ChessMove orig dest (Just p) | p <- [Queen, Knight, Rook, Bishop]]
+      in if b .&. 0x00ff000000000000 /= 0  -- pawn is in row 7
+         then concatMap promote movesWithoutPromotion
+         else movesWithoutPromotion
 
     pawnMoves = concatMap listPawnMoves $ splitBits $ wPawns g
     knightMoves = concatMap (listSingleMovesByDir wKnights) knightDirs
@@ -274,13 +293,13 @@ whiteMoves g =
      then []
      else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves
 
-applyWhiteMove g (ChessMove fromBit toBit) =
+applyWhiteMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
       if bits .&. fromBit == 0
       then bits
       else (bits .&. complement fromBit) .|. toBit
-  in Chessboard {
+    g' = Chessboard {
        bPawns   = bPawns g   .&. complement toBit,
        bKnights = bKnights g .&. complement toBit,
        bBishops = bBishops g .&. complement toBit,
@@ -292,7 +311,16 @@ applyWhiteMove g (ChessMove fromBit toBit) =
        wRooks   = applyMoveToBitBoard $ wRooks g,
        wKing    = applyMoveToBitBoard $ wKing g,
        whoseTurn = Black}
-
+  in case promote of
+    Nothing -> g'
+    Just piece ->
+      let g'' = g' {wPawns = wPawns g' .&. complement toBit}
+      in case piece of
+        Queen  -> g'' {wBishops = wBishops g'' .|. toBit,
+                       wRooks   = wRooks   g'' .|. toBit}
+        Knight -> g'' {wKnights = wKnights g'' .|. toBit}
+        Bishop -> g'' {wBishops = wBishops g'' .|. toBit}
+        Rook   -> g'' {wRooks   = wRooks   g'' .|. toBit}
 
 instance Game Chessboard where
   type Move Chessboard = ChessMove
@@ -321,9 +349,9 @@ instance Game Chessboard where
   -- Instead of implementing the baroque checkmate rules of chess,
   -- we simply call the game over if an enemy captures your king.
   -- This has one drawback: stalemate is not scored as 0.0.
-  scoreFinishedGame g = if wKing g == 0 then 1
-                        else if bKing g == 0 then -1
-                        else 0
+  scoreFinishedGame g =
+    let threatenedKing = if whoseTurn g == White then wKing g else bKing g
+    in if threatenedKing == 0 then 1 else 0
 
 -- The first heuristic I attempted was this amazingly bad one:
 heuristic0 g = 0
