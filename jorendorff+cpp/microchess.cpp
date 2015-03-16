@@ -804,8 +804,8 @@ static int chess() {
             bestm = to;
             square = dis3;
             disp();
-            move();
             sp2 = stack + STACK_SIZE;
+            move();
             disp();
             pout();
         } else {
