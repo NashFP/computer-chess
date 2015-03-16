@@ -89,19 +89,10 @@ class JorendorffHaskellBlack(ChessPlayingProcess):
         ChessPlayingProcess.__init__(self, 'B', ["jorendorff+haskell/Chess"])
 
     def play(self, move):
+        if move == "resign":
+            move = "q"
         self.send(move)
-        reply = self._read_move()
-        if len(reply) == 4:
-            # horrible kludge: haskell makes all its moves backwards,
-            # so turn it around manually here (easier than doing the same thing in haskell)
-            [c1, r1, c2, r2] = reply
-            c1 = chr(ord('a') + ord('h') - ord(c1))
-            r1 = chr(ord('1') + ord('8') - ord(r1))
-            c2 = chr(ord('a') + ord('h') - ord(c2))
-            r2 = chr(ord('1') + ord('8') - ord(r2))
-            reply = c1 + r1 + c2 + r2
-            print("*> reply translated to:", reply)
-        return reply
+        return self._read_move()
 
     def parse_move(self, line):
         line = line.rstrip()
