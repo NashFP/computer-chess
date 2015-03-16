@@ -2,7 +2,8 @@
 
 This directory contains a C++ port of
 [Microchess](https://chessprogramming.wikispaces.com/MicroChess),
-a simple chess-playing program originally written for the
+a simple chess-playing program by Peter Jennings,
+originally written for the
 [KIM-1](http://www.6502.org/trainers/buildkim/kim.htm),
 the first computer developed by Commodore.
 The program is therefore in 6502 assembler.
