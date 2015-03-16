@@ -94,13 +94,7 @@ struct Move {
     uint8_t m_dest;         // where m_piece was moved to
 };
 
-/*
- * This is something of a mystery. In the original program, the stack could
- * grow to at most 3 moves before overwriting REV and other variables.  But the
- * program pretty clearly recurses... I dunno, setting it to 8 is a stopgap
- * until I understand what's going on.
- */
-#define STACK_SIZE 8
+#define STACK_SIZE 5
 static Move stack[STACK_SIZE];  // [$B9:$C8]
 Move *sp2;
 

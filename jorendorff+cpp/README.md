@@ -182,21 +182,10 @@ The whole opening is encoded in 28 bytes, and the manual explains
 how to replace this opening with four others.
 
 
-## Bug in the original?
+## Source
 
-The source I started with came from
-<http://benlo.com/files/Microchess6502.txt>
+The source I started with came from <http://benlo.com/files/Microchess6502.txt>
 and [Microchess6502.txt](Microchess6502.txt) is a copy of that file.
-However that code contains one apparent bug
-which I had to fix in the C++ port.
 
-The initial value of the pointer SP2 is $C8, but that only leaves the
-move stack enough room to hold three moves. The fourth move starts
-overwriting the variables stored at $B0-$B7.
-
-It seems like it must be a bug, since the game can look ahead at least 5
-moves (I think more like 8 but I&rsquo;m not far enough along yet to be
-sure) and one of those variables is STATE which drives the whole
-algorithm. Yet there it is, not only in the modified copy I've got, but
-in the PDF of the original listing. Perplexed.
-
+The [Microchess manual](http://archive.computerhistory.org/projects/chess/related_materials/text/4-1.MicroChess_%20Manual_for_6502.Micro-Ware/MicroChessManual.PETER_JENNINGS.062303071.sm.pdf)
+contains an earlier listing.
