@@ -95,7 +95,7 @@ struct Move {
 };
 
 #define STACK_SIZE 5
-static Move stack[STACK_SIZE];  // [$B9:$C8]
+static Move stack[STACK_SIZE];  // [$01AF:$01C8]
 Move *sp2;
 
 static uint8_t moven;
