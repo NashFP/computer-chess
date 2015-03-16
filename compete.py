@@ -79,11 +79,13 @@ class ChessPlayingProcess:
         print("*> ignoring the line {!r} since it doesn't match".format(line))
         return None
 
-    def ignore_until_prompt(self):
+    def _readlines_until_prompt(self):
         text = read_until_prompt(self.color, self.process.stdout, self.prompt)
         self.closed = not text.endswith(self.prompt)
+        return text.splitlines()
 
-        for line in text.splitlines():
+    def ignore_until_prompt(self):
+        for line in self._readlines_until_prompt():
             line_as_move = self.parse_move(line)
             if line_as_move is not None:
                 print("*> ignoring what looks like a move ({}) sent by player {}".format(
@@ -96,11 +98,8 @@ class ChessPlayingProcess:
             print("*> trying to read from closed pipe, assuming resignation")
             return "resign"
 
-        text = read_until_prompt(self.color, self.process.stdout, self.prompt)
-        self.closed = not text.endswith(self.prompt)
-
         move = None
-        for line in text.splitlines():
+        for line in self._readlines_until_prompt():
             line_as_move = self.parse_move(line)
             if line_as_move is not None:
                 if move is None:
