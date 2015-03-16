@@ -182,24 +182,21 @@ The whole opening is encoded in 28 bytes, and the manual explains
 how to replace this opening with four others.
 
 
-## Bugs in the original?
+## Bug in the original?
 
 The source I started with came from
 <http://benlo.com/files/Microchess6502.txt>
 and [Microchess6502.txt](Microchess6502.txt) is a copy of that file.
-However that code contains what seem like bugs
+However that code contains one apparent bug
 which I had to fix in the C++ port.
 
-*   The initial value of the pointer SP2 is $C8, but that only leaves
-    the move stack enough room to hold three moves. The fourth move
-    starts overwriting the variables stored at $B0-$B7.
+The initial value of the pointer SP2 is $C8, but that only leaves the
+move stack enough room to hold three moves. The fourth move starts
+overwriting the variables stored at $B0-$B7.
 
-    Pretty sure this is a bug, since the game can look ahead at least 5
-    moves (I think more like 8 but I&rsquo;m not far enough along yet to
-    be sure) and one of those variables is STATE which drives the whole
-    algorithm.
-
-*   The main routine CHESS does JSR GO to run the AI, but GO does not
-    return to its caller with RTS. Instead it ends with JMP CHESS.  This
-    should cause the stack to grow without bound as you play the game.
+It seems like it must be a bug, since the game can look ahead at least 5
+moves (I think more like 8 but I&rsquo;m not far enough along yet to be
+sure) and one of those variables is STATE which drives the whole
+algorithm. Yet there it is, not only in the modified copy I've got, but
+in the PDF of the original listing. Perplexed.
 
