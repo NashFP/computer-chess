@@ -8,7 +8,7 @@ the first computer developed by Commodore.
 The program is therefore in 6502 assembler.
 
 Not exactly a functional programming language!
-But I'll make up for that later.
+But I&rsquo;ll make up for that later.
 In any case, all our chess-playing programs need something to play against.
 So consider this a benchmark.
 
@@ -23,7 +23,7 @@ So consider this a benchmark.
     ./microchess
 
 I wrote the user interface.
-It's text-only, but if you think that&rsquo;s primitive, consider that
+It&rsquo;s text-only, but if you think that&rsquo;s primitive, consider that
 Microchess in its original form communicated through seven-segment displays.
 
 *   Type <kbd>Q</kbd> and hit <kbd>Enter</kbd> to quit.
@@ -48,23 +48,23 @@ Microchess in its original form communicated through seven-segment displays.
 
         h g f e d c b a        0F 13 33
 
-    To counter with **e5**, you'd type <kbd>e7e5 Enter</kbd>.
+    To counter with **e5**, you&rsquo;d type <kbd>e7e5 Enter</kbd>.
 
     Then type <kbd>P</kbd> and Microchess will respond (with Nf3).
     And so on.
 
-*   There's one more command, <kbd>R</kbd>, which reverses the board.
-    Bizarrely, the letters and numbers around the edges stay where
-    they are &mdash; the way this is implemented is a little weird.
-    It actually reverses the positions of all the pieces in memory.
-    (The UI maybe ought to compensate, but it doesn&rsquo;t.)
+*   There&rsquo;s one more command, <kbd>R</kbd>, which reverses the
+    board.  Bizarrely, the letters and numbers around the edges stay
+    where they are &mdash; the way this is implemented is a little
+    weird.  It actually reverses the positions of all the pieces in
+    memory.  (The UI maybe ought to compensate, but it doesn&rsquo;t.)
 
 Microchess peculiarities:
 
-*   Microchess doesn't enforce any rules whatsoever.
+*   Microchess doesn&rsquo;t enforce any rules whatsoever.
     You can move your pieces in illegal ways.
     You can take six turns in a row.
-    You can move the computer's pieces.
+    You can move the computer&rsquo;s pieces.
 
 *   Microchess does not support castling, *en passant*, or promotion.
 
@@ -96,17 +96,17 @@ differently from standard chess notation&mdash;they&rsquo;re
 zero-indexed and the columns are numbered in the opposite
 direction&mdash;so this corresponds to square **c2**.
 
-The main AI starts at NOOPEN. It's rather bewildering; here are the
+The main AI starts at NOOPEN. It&rsquo;s rather bewildering; here are the
 parts that make sense to me:
 
 *   There is a routine, GNM, that simply finds every possible move,
     and calls another routine JANUS, for each one.
 
-    In other words, it's `map JANUS availableMoves`.
+    In other words, it&rsquo;s `map JANUS availableMoves`.
 
     JANUS can do several different things; its behavior is determined by
     the variable STATE. GNM is thus a utility that the AI uses in
-    several different ways. The poor man's higher-order function.
+    several different ways. The poor man&rsquo;s higher-order function.
 
 *   The AI has the ability to look ahead at capture exchanges, examining
     that part of the game tree depth-first. (This looking-ahead is what
@@ -152,10 +152,13 @@ values being "summed" rather than the one best move being selected.
 > 50  available  moves  per  side,  a  total  of  15.625 billion
 > sequences are generated in three moves per side.
 
-(It&rsquo;s true: 50<sup>6</sup> is 15.625 billion.)
+(It&rsquo;s true: 50<sup>6</sup> is 15.625 billion;
+but the average number of moves available to the player
+in any given position is more like 35, and 35<sup>6</sup>
+isn&rsquo;t even 2 billion! So you see.)
 
 **Opening.** One more cool thing. Microchess also conatins a script for
-one standard opening.  If you let Microchess play white, it'll open with
+one standard opening.  If you let Microchess play white, it&rsquo;ll open with
 **e4**, and if you play the black moves listed below, Microchess plays
 the white moves.
 
@@ -171,7 +174,7 @@ the white moves.
 
 This is the only way Microchess can castle.
 In fact, because Microchess doesn&rsquo;t really support castling,
-after **8. o-o** the user has to move white's rook manually
+after **8. o-o** the user has to move white&rsquo;s rook manually
 by typing <kbd>h1f1 Enter</kbd>!
 
 The whole opening is encoded in 28 bytes, and the manual explains
@@ -191,8 +194,8 @@ which I had to fix in the C++ port.
     starts overwriting the variables stored at $B0-$B7.
 
     Pretty sure this is a bug, since the game can look ahead at least 5
-    moves (I think more like 8 but I'm not far enough along yet to be
-    sure) and one of those variables is STATE which drives the whole
+    moves (I think more like 8 but I&rsquo;m not far enough along yet to
+    be sure) and one of those variables is STATE which drives the whole
     algorithm.
 
 *   The main routine CHESS does JSR GO to run the AI, but GO does not
