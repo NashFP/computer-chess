@@ -15,10 +15,10 @@
     P P P P P P P P   2
     . . . . . . . .   3
     . . . . . . . .   4
-    . . . . . . . .   5
+    . . . p . . . .   5
     . . . . . . . .   6
     p p p . p p p p   7
     r n b k q b n r   8
 
-    h g f e d c b a        FF 43 63
+    h g f e d c b a        FF 63 43
 > 
