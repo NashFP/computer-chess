@@ -56,8 +56,7 @@ bestMoveWithTimeLimit estimator limit g =
   in best (scoreMoveWithTimeLimit estimator limitPerMove 1 g) (moves g)
 
 scoreMoveWithTimeLimit estimator limit debugDepth g m =
-  let score = scoreGameWithTimeLimit estimator limit debugDepth (applyMove g m)
-  in trace (take (debugDepth * 4) (repeat ' ') ++ show m ++ " - " ++ show score) score
+  scoreGameWithTimeLimit estimator limit debugDepth (applyMove g m)
 
 scoreGameWithTimeLimit estimator limit debugDepth g = case moves g of
   [] -> scoreFinishedGame g
