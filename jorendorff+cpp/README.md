@@ -1,4 +1,4 @@
-# Microchess in C++
+# MicroChess in C++
 
 This directory contains a C++ port of
 [MicroChess](https://chessprogramming.wikispaces.com/MicroChess),
