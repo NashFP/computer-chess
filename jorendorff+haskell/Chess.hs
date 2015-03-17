@@ -368,15 +368,17 @@ heuristic1 g = 0.05 * fromIntegral (popCount (allBlackPieces g) - popCount (allW
 -- queen is worth 8.80 points, so we add another line of code to add .37 points
 -- if the queen is still around.
 heuristic g =
-    (diff bPawns wPawns
-     + 3.2 * diff bKnights wKnights
-     + 3.33 * diff bBishops wBishops
-     + 5.1 * diff bRooks wRooks
-     + 0.37 * diff (\g -> bBishops g .&. bRooks g)
-                   (\g -> wBishops g .&. wRooks g))
-    * 0.001
-  where
-    diff blk wht = fromIntegral $ popCount (blk g) - popCount (wht g)
+  let diff blk wht = fromIntegral $ popCount (blk g) - popCount (wht g)
+      totalDiff = diff bPawns wPawns
+                  + 3.2 * diff bKnights wKnights
+                  + 3.33 * diff bBishops wBishops
+                  + 5.1 * diff bRooks wRooks
+                  + 0.37 * diff (\g -> bBishops g .&. bRooks g)
+                                (\g -> wBishops g .&. wRooks g)
+      signedDiff = case whoseTurn g of
+        White -> totalDiff
+        Black -> -totalDiff
+  in 0.001 * signedDiff
 
 chessAI = bestMoveWithDepthLimit heuristic 4
 
