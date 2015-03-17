@@ -1,7 +1,7 @@
 # Microchess in C++
 
 This directory contains a C++ port of
-[Microchess](https://chessprogramming.wikispaces.com/MicroChess),
+[MicroChess](https://chessprogramming.wikispaces.com/MicroChess),
 a simple chess-playing program by Peter Jennings,
 originally written for the
 [KIM-1](http://www.6502.org/trainers/buildkim/kim.htm),
@@ -25,12 +25,12 @@ So consider this a benchmark.
 
 I wrote the user interface.
 It&rsquo;s text-only, but if you think that&rsquo;s primitive, consider that
-Microchess in its original form communicated through seven-segment displays.
+MicroChess in its original form communicated through seven-segment displays.
 
 *   Type <kbd>Q</kbd> and hit <kbd>Enter</kbd> to quit.
 
 *   Enter <kbd>P</kbd> to tell the computer to take a turn.
-    Microchess always plays white.
+    MicroChess always plays white.
 
 *   To take your turn,
     enter the coordinates of the piece you want to move,
@@ -51,7 +51,7 @@ Microchess in its original form communicated through seven-segment displays.
 
     To counter with **e5**, you&rsquo;d type <kbd>e7e5 Enter</kbd>.
 
-    Then type <kbd>P</kbd> and Microchess will respond (with Nf3).
+    Then type <kbd>P</kbd> and MicroChess will respond (with Nf3).
     And so on.
 
 *   There&rsquo;s one more command, <kbd>R</kbd>, which reverses the
@@ -60,14 +60,14 @@ Microchess in its original form communicated through seven-segment displays.
     weird.  It actually reverses the positions of all the pieces in
     memory.  (The UI maybe ought to compensate, but it doesn&rsquo;t.)
 
-Microchess peculiarities:
+MicroChess peculiarities:
 
-*   Microchess doesn&rsquo;t enforce any rules whatsoever.
+*   MicroChess doesn&rsquo;t enforce any rules whatsoever.
     You can move your pieces in illegal ways.
     You can take six turns in a row.
     You can move the computer&rsquo;s pieces.
 
-*   Microchess does not support castling, *en passant*, or promotion.
+*   MicroChess does not support castling, *en passant*, or promotion.
 
     You can castle anyway, simply by moving your king and rook to the
     appropriate squares, and capture *en passant* by moving your pawn
@@ -76,9 +76,9 @@ Microchess peculiarities:
 
 
 
-## How Microchess works
+## How MicroChess works
 
-Microchess originally sold on cassette tape for $5,
+MicroChess originally sold on cassette tape for $5,
 and for that price you got not only the software but a
 [37-page manual](http://archive.computerhistory.org/projects/chess/related_materials/text/4-1.MicroChess_%20Manual_for_6502.Micro-Ware/MicroChessManual.PETER_JENNINGS.062303071.sm.pdf)
 containing not only instructions on how to play
@@ -92,7 +92,7 @@ location of one of the pieces or pawns in the game, or $CC if the piece
 has been captured.
 
 For example, if the byte at address $50 is $12, that means the white
-king is at row 1, column 2. Microchess numbers the rows and columns
+king is at row 1, column 2. MicroChess numbers the rows and columns
 differently from standard chess notation&mdash;they&rsquo;re
 zero-indexed and the columns are numbered in the opposite
 direction&mdash;so this corresponds to square **c2**.
@@ -121,14 +121,14 @@ parts that make sense to me:
     > side.
 
 *   Every chess AI needs a scoring algorithm, to compare the possible
-    moves and decide which is best. Microchess has a fancy one. It likes
+    moves and decide which is best. MicroChess has a fancy one. It likes
     for its pieces to have lots of available moves, and particularly for
     the queen to be mobile. It values attacking its opponent&rsquo;s
     high-value pieces. And it values attacking a large total value of
     material (it will totally fork your pieces with a knight given the
     chance).
 
-Microchess does *not* contain a general minimax algorithm. From the
+MicroChess does *not* contain a general minimax algorithm. From the
 manual:
 
 > With the exception of the capture tree, the MICROCHESS program
@@ -158,9 +158,9 @@ but the average number of moves available to the player
 in any given position is more like 35, and 35<sup>6</sup>
 isn&rsquo;t even 2 billion! So you see.)
 
-**Opening.** One more cool thing. Microchess also conatins a script for
-one standard opening.  If you let Microchess play white, it&rsquo;ll open with
-**e4**, and if you play the black moves listed below, Microchess plays
+**Opening.** One more cool thing. MicroChess also conatins a script for
+one standard opening.  If you let MicroChess play white, it&rsquo;ll open with
+**e4**, and if you play the black moves listed below, MicroChess plays
 the white moves.
 
 1.  e4      e5      (<kbd>e7e5</kbd>)
@@ -173,8 +173,8 @@ the white moves.
 8.  o-o     Bxc3    (<kbd>b4c3</kbd>)
 9.  bxc3
 
-This is the only way Microchess can castle.
-In fact, because Microchess doesn&rsquo;t really support castling,
+This is the only way MicroChess can castle.
+In fact, because MicroChess doesn&rsquo;t really support castling,
 after **8. o-o** the user has to move white&rsquo;s rook manually
 by typing <kbd>h1f1 Enter</kbd>!
 
@@ -187,5 +187,5 @@ how to replace this opening with four others.
 The source I started with came from <http://benlo.com/files/Microchess6502.txt>
 and [Microchess6502.txt](Microchess6502.txt) is a copy of that file.
 
-The [Microchess manual](http://archive.computerhistory.org/projects/chess/related_materials/text/4-1.MicroChess_%20Manual_for_6502.Micro-Ware/MicroChessManual.PETER_JENNINGS.062303071.sm.pdf)
+The [MicroChess manual](http://archive.computerhistory.org/projects/chess/related_materials/text/4-1.MicroChess_%20Manual_for_6502.Micro-Ware/MicroChessManual.PETER_JENNINGS.062303071.sm.pdf)
 contains an earlier listing.

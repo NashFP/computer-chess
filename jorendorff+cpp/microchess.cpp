@@ -576,7 +576,7 @@ static void janus(bool capture) {
 static int8_t omove;
 
 /*
- * Microchess knows a 9-move standard canned opening.  This is the opening.
+ * MicroChess knows a 9-move standard canned opening.  This is the opening.
  * It's read by go(), and (like everything else in the program) the array is
  * read backwards.  A global variable 'omove' indexes into this array.
  *
