@@ -1,0 +1,5 @@
+*.o
+*.hi
+xboard-input.txt
+xboard.debug
+chess-engine
