@@ -19,13 +19,15 @@ An experienced Haskell-er will probably be able to point out lots of better ways
 Requirements
 ------------
 
-To build, you'll need GHC <https://www.haskell.org/ghc/>, along with the MTL library, which you can install using Cabal <https://www.haskell.org/cabal/>.  You'll also need GNU Make, or you can just read the Makefile to see the commands to run.
-
-This program was designed to work with XBoard <http://www.gnu.org/software/xboard/> as the front end.
+To build, you'll need GHC <https://www.haskell.org/ghc/>, along with the MTL library, which you can install using Cabal <https://www.haskell.org/cabal/>.  You'll also need GNU Make, or you can just read the Makefile to see the commands to run.  This program was designed to work with XBoard <http://www.gnu.org/software/xboard/> as the front end.
 
 If you're on OS X, you can install all these using Homebrew:
 
 	$ brew install ghc cabal-install xboard
+
+Then:
+
+	$ cabal install mtl
 
 
 Running
