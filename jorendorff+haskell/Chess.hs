@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Chess(Chessboard(..), ChessMove, ChessColor(..), chessAI) where
+module Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(..), chessAI) where
 
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
@@ -14,21 +14,19 @@ import Vs
 data ChessColor = Black | White
   deriving Eq
 
+data Suite = Suite {
+  pawns   :: Word64,
+  knights :: Word64,
+  bishops :: Word64,
+  rooks   :: Word64,
+  king    :: Word64}
+
 data Chessboard = Chessboard {
-  bPawns   :: Word64,
-  bKnights :: Word64,
-  bBishops :: Word64,
-  bRooks   :: Word64,
-  bKing    :: Word64,
-  wPawns   :: Word64,
-  wKnights :: Word64,
-  wBishops :: Word64,
-  wRooks   :: Word64,
-  wKing    :: Word64,
+  black    :: Suite,
+  white    :: Suite,
   whoseTurn :: ChessColor }
 
-allWhitePieces g = wPawns g .|. wKnights g .|. wBishops g .|. wRooks g .|. wKing g
-allBlackPieces g = bPawns g .|. bKnights g .|. bBishops g .|. bRooks g .|. bKing g
+wholeSuite s = pawns s .|. knights s .|. bishops s .|. rooks s .|. king s
 
 
 --- Printing chessboards ------------------------------------------------------
@@ -36,23 +34,23 @@ allBlackPieces g = bPawns g .|. bKnights g .|. bBishops g .|. bRooks g .|. bKing
 data ChessPiece = King | Queen | Rook | Knight | Bishop | Pawn
   deriving Eq
 
+whatsInSuiteAt s bit =
+  if pawns s .&. bit /= 0 then Just Pawn
+  else if knights s .&. bit /= 0 then Just Knight
+  else if bishops s .&. bit /= 0 then Just (if rooks s .&. bit /= 0
+                                            then Queen
+                                            else Bishop)
+  else if rooks s .&. bit /= 0 then Just Rook
+  else if king s .&. bit /= 0 then Just King
+  else Nothing
+
 whatsAt g col row =
-  let b = shiftL (1 :: Word64) (8 * row + col)
-  in if (bPawns g .&. b) /= 0 then Just (Black, Pawn)
-     else if (bKnights g .&. b) /= 0 then Just (Black, Knight)
-     else if (bBishops g .&. b) /= 0 then Just (Black, if (bRooks g .&. b) /= 0
-                                                         then Queen
-                                                         else Bishop)
-     else if (bRooks   g .&. b) /= 0 then Just (Black, Rook)
-     else if (bKing    g .&. b) /= 0 then Just (Black, King)
-     else if (wPawns   g .&. b) /= 0 then Just (White, Pawn)
-     else if (wKnights g .&. b) /= 0 then Just (White, Knight)
-     else if (wBishops g .&. b) /= 0 then Just (White, if (wRooks g .&. b) /= 0
-                                                         then Queen
-                                                         else Bishop)
-     else if (wRooks   g .&. b) /= 0 then Just (White, Rook)
-     else if (wKing    g .&. b) /= 0 then Just (White, King)
-     else Nothing
+  let bit = shiftL (1 :: Word64) (8 * row + col)
+  in case whatsInSuiteAt (black g) bit of
+       Just piece -> Just (Black, piece)
+       Nothing -> case whatsInSuiteAt (white g) bit of
+         Just piece -> Just (White, piece)
+         Nothing -> Nothing
 
 instance Show Chessboard where
   show g =
@@ -80,20 +78,17 @@ instance Show Chessboard where
 flipColor White = Black
 flipColor Black = White
 
+flipSuite s = Suite {
+  pawns    = flipBits $ pawns s,
+  knights  = flipBits $ knights s,
+  bishops  = flipBits $ bishops s,
+  rooks    = flipBits $ rooks s,
+  king     = flipBits $ king s}
+
 -- Rotate a chessboard 180 degrees and swap the color of each piece.
 flipBoard g = Chessboard {
-  bPawns   = flipBits $ wPawns g,
-  bKnights = flipBits $ wKnights g,
-  bBishops = flipBits $ wBishops g,
-  bRooks   = flipBits $ wRooks g,
-  bKing    = flipBits $ wKing g,
-
-  wPawns   = flipBits $ bPawns g,
-  wKnights = flipBits $ bKnights g,
-  wBishops = flipBits $ bBishops g,
-  wRooks   = flipBits $ bRooks g,
-  wKing    = flipBits $ bKing g,
-
+  black     = flipSuite $ white g,
+  white     = flipSuite $ black g,
   whoseTurn = flipColor $ whoseTurn g}
 
 -- Reverse the order of the bits in a 64-bit integer.
@@ -178,7 +173,7 @@ splitBit x = let k = x .&. complement (x - 1)
 -- Return a list of all the 1 bits set in the argument.
 --     splitBits 0x89 == [0x01, 0x08, 0x80]
 splitBits :: (Bits a, Num a) => a -> [a]
-splitBits = unfoldr splitBit 
+splitBits = unfoldr splitBit
 
 -- rookDirs and friends are lists of pairs (shift, mask). 'shift' tells how
 -- much to shift a bit to move the corresponding piece in this direction.
@@ -200,7 +195,7 @@ rookDirs = [
 
 bishopDirs :: [(Int, Word64)]
 bishopDirs = [
-  (-9, 0xfefefefefefefe00),  -- SW, I think
+  (-9, 0xfefefefefefefe00),  -- SW
   (-7, 0x7f7f7f7f7f7f7f00),  -- SE
   ( 7, 0x00fefefefefefefe),  -- NW
   ( 9, 0x007f7f7f7f7f7f7f)]  -- NE
@@ -223,19 +218,28 @@ whitePawnCaptureDirs = [
   ( 7, 0x00fefefefefefefe),  -- NW
   ( 9, 0x007f7f7f7f7f7f7f)]  -- NE
 
-whiteMoves g =
+blackPawnCaptureDirs :: [(Int, Word64)]
+blackPawnCaptureDirs = [
+  (-9, 0xfefefefefefefe00),  -- SW
+  (-7, 0x7f7f7f7f7f7f7f00)]  -- SE
+
+rank2 = 0x000000000000ff00  -- white pawns start here
+rank7 = 0x00ff000000000000  -- black pawns start here
+
+chessMoves g =
   let
-    whitePieces :: Word64
-    whitePieces = allWhitePieces g
+    (friendly, enemy, pawnHomeRow, pawnPromoteRow, pawnShiftAmount, pawnCaptureDirs) =
+      case whoseTurn g of
+        White -> (white g, black g, rank2, rank7, 8, whitePawnCaptureDirs)
+        Black -> (black g, white g, rank7, rank2, -8, blackPawnCaptureDirs)
 
-    blackPieces :: Word64
-    blackPieces = allBlackPieces g
+    friendlyPieces = wholeSuite friendly
+    enemyPieces = wholeSuite enemy
+    allPieces = friendlyPieces .|. enemyPieces
 
-    allPieces = whitePieces .|. blackPieces
-
-    listSingleMovesByDir :: (Chessboard -> Word64) -> (Int, Word64) -> [ChessMove]
+    listSingleMovesByDir :: (Suite -> Word64) -> (Int, Word64) -> [ChessMove]
     listSingleMovesByDir field (shiftAmount, mask) =
-      concatMap (trySingleMove shiftAmount) $ splitBits $ field g .&. mask
+      concatMap (trySingleMove shiftAmount) $ splitBits $ field friendly .&. mask
 
     -- Try a single move. We are already guaranteed that the piece will land on
     -- the board when we move it in this direction; but we still need to check
@@ -246,7 +250,7 @@ whiteMoves g =
     trySingleMove shiftAmount b =
       let after :: Word64
           after = shift b shiftAmount
-      in if (after .&. whitePieces) == 0
+      in if (after .&. friendlyPieces) == 0
          then [ChessMove b after Nothing]
          else []
 
@@ -255,9 +259,9 @@ whiteMoves g =
       where stoppingPlaces c = if c .&. mask == 0
                                then []
                                else let c' = shift c shiftAmount
-                                    in if c' .&. whitePieces /= 0
+                                    in if c' .&. friendlyPieces /= 0
                                        then []
-                                       else if c' .&. blackPieces /= 0
+                                       else if c' .&. enemyPieces /= 0
                                             then [c']
                                             else c' : stoppingPlaces c'
 
@@ -266,36 +270,37 @@ whiteMoves g =
 
     listPawnMoves b =
       let
-        dest1 = shiftL b 8
+        dest1 = shift b pawnShiftAmount
         move1 = ChessMove b dest1 Nothing
-        dest2 = shiftL dest1 8
+        dest2 = shift dest1 pawnShiftAmount
         move2 = ChessMove b dest2 Nothing
         pawnForwardMoves =
           if allPieces .&. dest1 == 0
-          then if b .&. 0x000000000000ff00 /= 0  -- pawn is in row 2
+          then if b .&. pawnHomeRow /= 0  -- pawn is in home row
                   && allPieces .&. dest2 == 0
                then [move1, move2]
                else [move1]
           else []
         listPawnCaptures (shiftAmount, mask) =
           let dest = shift b shiftAmount
-          in if b .&. mask /= 0  &&  dest .&. blackPieces /= 0
+          in if b .&. mask /= 0  &&  dest .&. enemyPieces /= 0
              then [ChessMove b dest Nothing]
              else []
-        pawnCaptures = concatMap listPawnCaptures whitePawnCaptureDirs
+        pawnCaptures = concatMap listPawnCaptures pawnCaptureDirs
         movesWithoutPromotion = pawnForwardMoves ++ pawnCaptures
         promote (ChessMove orig dest _) =
           [ChessMove orig dest (Just p) | p <- [Queen, Knight, Rook, Bishop]]
-      in if b .&. 0x00ff000000000000 /= 0  -- pawn is in row 7
+      in if b .&. pawnPromoteRow /= 0  -- pawn is in seventh rank
          then concatMap promote movesWithoutPromotion
          else movesWithoutPromotion
 
-    pawnMoves = concatMap listPawnMoves $ splitBits $ wPawns g
-    knightMoves = concatMap (listSingleMovesByDir wKnights) knightDirs
-    bishopMoves = concatMap (listRayMoves bishopDirs) $ splitBits $ wBishops g
-    rookMoves = concatMap (listRayMoves rookDirs) $ splitBits $ wRooks g
-    kingMoves = concatMap (listSingleMovesByDir wKing) kingDirs
-  in if wKing g == 0
+    my x = x friendly
+    pawnMoves = concatMap listPawnMoves $ splitBits $ my pawns
+    knightMoves = concatMap (listSingleMovesByDir knights) knightDirs
+    bishopMoves = concatMap (listRayMoves bishopDirs) $ splitBits $ my bishops
+    rookMoves = concatMap (listRayMoves rookDirs) $ splitBits $ my rooks
+    kingMoves = concatMap (listSingleMovesByDir king) kingDirs
+  in if my king == 0
      then []
      else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves
 
@@ -305,48 +310,56 @@ applyWhiteMove g (ChessMove fromBit toBit promote) =
       if bits .&. fromBit == 0
       then bits
       else (bits .&. complement fromBit) .|. toBit
+
+    gWhite = white g
+    gBlack = black g
+
     g' = Chessboard {
-       bPawns   = bPawns g   .&. complement toBit,
-       bKnights = bKnights g .&. complement toBit,
-       bBishops = bBishops g .&. complement toBit,
-       bRooks   = bRooks g   .&. complement toBit,
-       bKing    = bKing g    .&. complement toBit,
-       wPawns   = applyMoveToBitBoard $ wPawns g,
-       wKnights = applyMoveToBitBoard $ wKnights g,
-       wBishops = applyMoveToBitBoard $ wBishops g,
-       wRooks   = applyMoveToBitBoard $ wRooks g,
-       wKing    = applyMoveToBitBoard $ wKing g,
+       black = Suite {
+         pawns   = pawns gBlack   .&. complement toBit,
+         knights = knights gBlack .&. complement toBit,
+         bishops = bishops gBlack .&. complement toBit,
+         rooks   = rooks gBlack   .&. complement toBit,
+         king    = king gBlack    .&. complement toBit},
+       white = Suite {
+         pawns   = applyMoveToBitBoard $ pawns gWhite,
+         knights = applyMoveToBitBoard $ knights gWhite,
+         bishops = applyMoveToBitBoard $ bishops gWhite,
+         rooks   = applyMoveToBitBoard $ rooks gWhite,
+         king    = applyMoveToBitBoard $ king gWhite},
        whoseTurn = Black}
   in case promote of
     Nothing -> g'
     Just piece ->
-      let g'' = g' {wPawns = wPawns g' .&. complement toBit}
-      in case piece of
-        Queen  -> g'' {wBishops = wBishops g'' .|. toBit,
-                       wRooks   = wRooks   g'' .|. toBit}
-        Knight -> g'' {wKnights = wKnights g'' .|. toBit}
-        Bishop -> g'' {wBishops = wBishops g'' .|. toBit}
-        Rook   -> g'' {wRooks   = wRooks   g'' .|. toBit}
+      let w' = white g'
+          w'' = w' {pawns = pawns w' .&. complement toBit}
+          w''' = case piece of
+            Queen  -> w'' {bishops = bishops w'' .|. toBit,
+                           rooks   = rooks   w'' .|. toBit}
+            Knight -> w'' {knights = knights w'' .|. toBit}
+            Bishop -> w'' {bishops = bishops w'' .|. toBit}
+            Rook   -> w'' {rooks   = rooks   w'' .|. toBit}
+      in g' {white = w'''}
 
 instance Game Chessboard where
   type Move Chessboard = ChessMove
 
   start = Chessboard {
-    bPawns   = 0x00ff000000000000,
-    bKnights = 0x4200000000000000,
-    bBishops = 0x2c00000000000000,
-    bRooks   = 0x8900000000000000,
-    bKing    = 0x1000000000000000,
-    wPawns   = 0x000000000000ff00,
-    wKnights = 0x0000000000000042,
-    wBishops = 0x000000000000002c,
-    wRooks   = 0x0000000000000089,
-    wKing    = 0x0000000000000010,
+    black = Suite {
+      pawns   = 0x00ff000000000000,
+      knights = 0x4200000000000000,
+      bishops = 0x2c00000000000000,
+      rooks   = 0x8900000000000000,
+      king    = 0x1000000000000000},
+    white = Suite {
+      pawns   = 0x000000000000ff00,
+      knights = 0x0000000000000042,
+      bishops = 0x000000000000002c,
+      rooks   = 0x0000000000000089,
+      king    = 0x0000000000000010},
     whoseTurn = White}
 
-  moves g = case whoseTurn g of
-    White -> whiteMoves g
-    Black -> map flipMove $ whiteMoves $ flipBoard g
+  moves = chessMoves
 
   applyMove g move = case whoseTurn g of
     White -> applyWhiteMove g move
@@ -356,14 +369,14 @@ instance Game Chessboard where
   -- we simply call the game over if an enemy captures your king.
   -- This has one drawback: stalemate is not scored as 0.0.
   scoreFinishedGame g =
-    let threatenedKing = if whoseTurn g == White then wKing g else bKing g
+    let threatenedKing = if whoseTurn g == White then king (white g) else king (black g)
     in if threatenedKing == 0 then 1 else 0
 
 -- The first heuristic I attempted was this amazingly bad one:
 heuristic0 g = 0
 
 -- Then I tried this almost-as-bad heuristic: just count pieces :)
-heuristic1 g = 0.05 * fromIntegral (popCount (allBlackPieces g) - popCount (allWhitePieces g))
+heuristic1 g = 0.05 * fromIntegral (popCount (wholeSuite $ black g) - popCount (wholeSuite $ white g))
 
 -- Now we're at the point where we give the pieces values. The scores here are
 -- from Wikipedia, which lists a dozen or more scoring systems to choose
@@ -374,16 +387,15 @@ heuristic1 g = 0.05 * fromIntegral (popCount (allBlackPieces g) - popCount (allW
 -- queen is worth 8.80 points, so we add another line of code to add .37 points
 -- if the queen is still around.
 heuristic g =
-  let diff blk wht = fromIntegral $ popCount (blk g) - popCount (wht g)
-      totalDiff = diff bPawns wPawns
-                  + 3.2 * diff bKnights wKnights
-                  + 3.33 * diff bBishops wBishops
-                  + 5.1 * diff bRooks wRooks
-                  + 0.37 * diff (\g -> bBishops g .&. bRooks g)
-                                (\g -> wBishops g .&. wRooks g)
+  let diff field = fromIntegral $ popCount (field (black g)) - popCount (field (white g))
+      totalDiff = diff pawns
+                  + 3.2 * diff knights
+                  + 3.33 * diff bishops
+                  + 5.1 * diff rooks
+                  + 0.37 * diff (\s -> bishops s .&. rooks s)
       signedDiff = case whoseTurn g of
         White -> totalDiff
         Black -> -totalDiff
   in 0.001 * signedDiff
 
-chessAI = bestMoveWithDepthLimit heuristic 4
+chessAI = bestMoveWithDepthLimit heuristic 3

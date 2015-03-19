@@ -7,7 +7,7 @@ import System.Exit(exitWith, ExitCode(ExitSuccess))
 import Data.Char(isSpace, ord)
 import Data.Bits(bit, (.|.))
 import Minimax(start, moves, applyMove)
-import Chess(Chessboard(..), ChessMove, ChessColor(White, Black), chessAI)
+import Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(White, Black), chessAI)
 
 data MoveResult = MoveError String | GameOver String | Continue Chessboard
 
@@ -40,16 +40,18 @@ fileToInt file = (ord file) - (ord 'a')
 
 fenToBoard :: String -> Chessboard
 fenToBoard str = Chessboard {
-  bPawns   = bitBoard "p",
-  bKnights = bitBoard "n",
-  bBishops = bitBoard "bq",
-  bRooks   = bitBoard "rq",
-  bKing    = bitBoard "k",
-  wPawns   = bitBoard "P",
-  wKnights = bitBoard "N",
-  wBishops = bitBoard "BQ",
-  wRooks   = bitBoard "RQ",
-  wKing    = bitBoard "K",
+  black = Suite {
+    pawns   = bitBoard "p",
+    knights = bitBoard "n",
+    bishops = bitBoard "bq",
+    rooks   = bitBoard "rq",
+    king    = bitBoard "k"},
+  white = Suite {
+    pawns   = bitBoard "P",
+    knights = bitBoard "N",
+    bishops = bitBoard "BQ",
+    rooks   = bitBoard "RQ",
+    king    = bitBoard "K"},
   whoseTurn = whoseTurn}
   where
     [piecesStr, whoseTurnStr, castlingString, enPassantString] = words str
