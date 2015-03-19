@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
+module Chess(Chessboard(..), ChessMove, ChessColor(..), chessAI) where
+
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
 import Data.Int
@@ -381,5 +383,3 @@ heuristic g =
   in 0.001 * signedDiff
 
 chessAI = bestMoveWithDepthLimit heuristic 4
-
-main = playHumanVsComputer chessAI start
