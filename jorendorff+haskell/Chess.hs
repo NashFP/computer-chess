@@ -97,6 +97,10 @@ flipBoard g = Chessboard {
   whoseTurn = flipColor $ whoseTurn g}
 
 -- Reverse the order of the bits in a 64-bit integer.
+--
+-- Warren, Hacker's Delight, p. 101 gives a 32-bit version of this algorithm
+-- and points out "These five assignment statements can be executed in any
+-- order." Indeed so can ours, though for a completely different reason. :-)
 flipBits :: Word64 -> Word64
 flipBits u =
   let u2  = (shiftL (u   .&. 0x5555555555555555) 1) .|.
