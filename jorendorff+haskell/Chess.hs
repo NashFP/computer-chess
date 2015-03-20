@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(..), chessAI) where
+module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..)) where
 
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
@@ -366,31 +366,3 @@ instance Game Chessboard where
           White -> white g
           Black -> black g
     in if squareIsThreatenedBy g (king side) (flipColor $ whoseTurn g) then 1 else 0
-
--- The first heuristic I attempted was this amazingly bad one:
-heuristic0 g = 0
-
--- Then I tried this almost-as-bad heuristic: just count pieces :)
-heuristic1 g = 0.05 * fromIntegral (popCount (wholeSuite $ black g) - popCount (wholeSuite $ white g))
-
--- Now we're at the point where we give the pieces values. The scores here are
--- from Wikipedia, which lists a dozen or more scoring systems to choose
--- from. This one is credited to Hans Berliner.
---     Since we have this bizarre thing where a queen is represented as a
--- bishop and a rook, the code below counts the queen first as a bishop and
--- then as a rook, for 3.33 + 5.1 = 8.43 points. But in Berliner's system a
--- queen is worth 8.80 points, so we add another line of code to add .37 points
--- if the queen is still around.
-heuristic g =
-  let (you, me) = case whoseTurn g of  -- it's your turn next
-                    White -> (white, black)
-                    Black -> (black, white)
-      diff field = fromIntegral $ popCount (field (me g)) - popCount (field (you g))
-      totalDiff = diff pawns
-                  + 3.2 * diff knights
-                  + 3.33 * diff bishops
-                  + 5.1 * diff rooks
-                  + 0.37 * diff (\s -> bishops s .&. rooks s)
-  in 0.001 * totalDiff
-
-chessAI = bestMoveWithDepthLimit heuristic 3

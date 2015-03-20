@@ -1,7 +1,7 @@
 import Control.Monad.State(runStateT)
 import System.Environment(getArgs)
 import Minimax(start)
-import Chess(chessAI)
+import ChessAI(chessAI)
 import XBoard(playXBoard)
 import Vs(playHumanVsComputer)
 

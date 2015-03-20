@@ -7,7 +7,8 @@ import System.Exit(exitWith, ExitCode(ExitSuccess))
 import Data.Char(isSpace, ord)
 import Data.Bits(bit, (.|.))
 import Minimax(start, moves, applyMove, scoreFinishedGame)
-import Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(White, Black), chessAI)
+import Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(White, Black))
+import ChessAI(chessAI)
 
 data MoveResult = MoveError String | GameOver String | Continue Chessboard
 
