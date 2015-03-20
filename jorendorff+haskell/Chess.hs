@@ -341,37 +341,40 @@ removeAnyPieceAt s x =
        rooks   = r .&. notx,
        king    = k}
 
-applyWhiteMove g (ChessMove fromBit toBit promote) =
+applyChessMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
       if bits .&. fromBit == 0
       then bits
       else (bits .&. complement fromBit) .|. toBit
 
-    gWhite = white g
-    gBlack = black g
+    (friends, enemies) = case whoseTurn g of
+      White -> (white g, black g)
+      Black -> (black g, white g)
 
-    g' = Chessboard {
-       black = removeAnyPieceAt gBlack toBit,
-       white = Suite {
-         pawns   = applyMoveToBitBoard $ pawns gWhite,
-         knights = applyMoveToBitBoard $ knights gWhite,
-         bishops = applyMoveToBitBoard $ bishops gWhite,
-         rooks   = applyMoveToBitBoard $ rooks gWhite,
-         king    = applyMoveToBitBoard $ king gWhite},
-       whoseTurn = Black}
-  in case promote of
-    Nothing -> g'
-    Just piece ->
-      let w' = white g'
-          w'' = w' {pawns = pawns w' .&. complement toBit}
-          w''' = case piece of
-            Queen  -> w'' {bishops = bishops w'' .|. toBit,
-                           rooks   = rooks   w'' .|. toBit}
-            Knight -> w'' {knights = knights w'' .|. toBit}
-            Bishop -> w'' {bishops = bishops w'' .|. toBit}
-            Rook   -> w'' {rooks   = rooks   w'' .|. toBit}
-      in g' {white = w'''}
+    enemies' = removeAnyPieceAt enemies toBit
+
+    friends' = applyPromotion $ Suite {
+      pawns   = applyMoveToBitBoard $ pawns friends,
+      knights = applyMoveToBitBoard $ knights friends,
+      bishops = applyMoveToBitBoard $ bishops friends,
+      rooks   = applyMoveToBitBoard $ rooks friends,
+      king    = applyMoveToBitBoard $ king friends}
+
+    applyPromotion side = case promote of
+      Nothing -> side
+      Just piece ->
+        let side' = side {pawns = pawns side .&. complement toBit}
+        in case piece of
+             Queen  -> side' {bishops = bishops side' .|. toBit,
+                              rooks   = rooks   side' .|. toBit}
+             Knight -> side' {knights = knights side' .|. toBit}
+             Bishop -> side' {bishops = bishops side' .|. toBit}
+             Rook   -> side' {rooks   = rooks   side' .|. toBit}
+
+  in case whoseTurn g of
+       White -> Chessboard {white = friends', black = enemies', whoseTurn = Black}
+       Black -> Chessboard {white = enemies', black = friends', whoseTurn = White}
 
 instance Game Chessboard where
   type Move Chessboard = ChessMove
@@ -393,9 +396,7 @@ instance Game Chessboard where
 
   moves = legalMoves
 
-  applyMove g move = case whoseTurn g of
-    White -> applyWhiteMove g move
-    Black -> flipBoard $ applyWhiteMove (flipBoard g) (flipMove move)
+  applyMove = applyChessMove
 
   scoreFinishedGame g =
     let side = case whoseTurn g of
