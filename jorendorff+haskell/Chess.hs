@@ -418,15 +418,15 @@ heuristic1 g = 0.05 * fromIntegral (popCount (wholeSuite $ black g) - popCount (
 -- queen is worth 8.80 points, so we add another line of code to add .37 points
 -- if the queen is still around.
 heuristic g =
-  let diff field = fromIntegral $ popCount (field (black g)) - popCount (field (white g))
+  let (you, me) = case whoseTurn g of  -- it's your turn next
+                    White -> (white, black)
+                    Black -> (black, white)
+      diff field = fromIntegral $ popCount (field (me g)) - popCount (field (you g))
       totalDiff = diff pawns
                   + 3.2 * diff knights
                   + 3.33 * diff bishops
                   + 5.1 * diff rooks
                   + 0.37 * diff (\s -> bishops s .&. rooks s)
-      signedDiff = case whoseTurn g of
-        White -> totalDiff
-        Black -> -totalDiff
-  in 0.001 * signedDiff
+  in 0.001 * totalDiff
 
 chessAI = bestMoveWithDepthLimit heuristic 3
