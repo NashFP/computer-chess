@@ -226,7 +226,11 @@ blackPawnCaptureDirs = [
 rank2 = 0x000000000000ff00  -- white pawns start here
 rank7 = 0x00ff000000000000  -- black pawns start here
 
-chessMoves g =
+-- Return the list of all moves, without eliminating moves that leave
+-- the current player's king in check. Moves where a piece would capture
+-- an opposing king are also included (indeed we rely on this).
+naiveMoves :: Chessboard -> [ChessMove]
+naiveMoves g =
   let
     (friendly, enemy, pawnHomeRow, pawnPromoteRow, pawnShiftAmount, pawnCaptureDirs) =
       case whoseTurn g of
@@ -304,6 +308,26 @@ chessMoves g =
      then []
      else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves
 
+-- Given the board 'g' and a bit 'square', return true if any of 'color's
+-- pieces are attacking that square.
+squareIsThreatenedBy g square color =
+  let hypothetical = g {whoseTurn = color}
+  in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
+
+legalMoves g = filter (not . leavesSelfInCheck) (naiveMoves g)
+  where
+    -- Suppose it's white to play. Then m is a move by white, and g' is the board
+    -- after that move. In g' it is black's turn. We want to know if white's king
+    -- is threatened by black's pieces.
+    leavesSelfInCheck m =
+      let me = whoseTurn g
+          you = flipColor me
+          g' = applyMove g m
+          myKing = king $ case me of
+            White -> white g'
+            Black -> black g'
+      in squareIsThreatenedBy g' myKing you
+
 applyWhiteMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
@@ -359,18 +383,17 @@ instance Game Chessboard where
       king    = 0x0000000000000010},
     whoseTurn = White}
 
-  moves = chessMoves
+  moves = legalMoves
 
   applyMove g move = case whoseTurn g of
     White -> applyWhiteMove g move
     Black -> flipBoard $ applyWhiteMove (flipBoard g) (flipMove move)
 
-  -- Instead of implementing the baroque checkmate rules of chess,
-  -- we simply call the game over if an enemy captures your king.
-  -- This has one drawback: stalemate is not scored as 0.0.
   scoreFinishedGame g =
-    let threatenedKing = if whoseTurn g == White then king (white g) else king (black g)
-    in if threatenedKing == 0 then 1 else 0
+    let side = case whoseTurn g of
+          White -> white g
+          Black -> black g
+    in if squareIsThreatenedBy g (king side) (flipColor $ whoseTurn g) then 1 else 0
 
 -- The first heuristic I attempted was this amazingly bad one:
 heuristic0 g = 0
