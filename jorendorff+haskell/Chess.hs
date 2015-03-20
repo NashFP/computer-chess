@@ -328,6 +328,19 @@ legalMoves g = filter (not . leavesSelfInCheck) (naiveMoves g)
             Black -> black g'
       in squareIsThreatenedBy g' myKing you
 
+removeAnyPieceAt :: Suite -> Word64 -> Suite
+removeAnyPieceAt s x =
+  let Suite {pawns = p, knights = n, bishops = b, rooks = r, king = k} = s
+      notx = complement x
+  in if (p .|. n .|. b .|. r) .&. x == 0
+     then s  -- save some memory
+     else Suite {
+       pawns   = p .&. notx,
+       knights = n .&. notx,
+       bishops = b .&. notx,
+       rooks   = r .&. notx,
+       king    = k}
+
 applyWhiteMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
@@ -339,12 +352,7 @@ applyWhiteMove g (ChessMove fromBit toBit promote) =
     gBlack = black g
 
     g' = Chessboard {
-       black = Suite {
-         pawns   = pawns gBlack   .&. complement toBit,
-         knights = knights gBlack .&. complement toBit,
-         bishops = bishops gBlack .&. complement toBit,
-         rooks   = rooks gBlack   .&. complement toBit,
-         king    = king gBlack    .&. complement toBit},
+       black = removeAnyPieceAt gBlack toBit,
        white = Suite {
          pawns   = applyMoveToBitBoard $ pawns gWhite,
          knights = applyMoveToBitBoard $ knights gWhite,
