@@ -14,6 +14,9 @@ import Vs
 data ChessColor = Black | White
   deriving Eq
 
+flipColor White = Black
+flipColor Black = White
+
 data Suite = Suite {
   pawns   :: Word64,
   knights :: Word64,
@@ -73,51 +76,11 @@ instance Show Chessboard where
       toChar (Just (Black, Pawn))   = 'p'
 
 
---- Flipping the table --------------------------------------------------------
-
-flipColor White = Black
-flipColor Black = White
-
-flipSuite s = Suite {
-  pawns    = flipBits $ pawns s,
-  knights  = flipBits $ knights s,
-  bishops  = flipBits $ bishops s,
-  rooks    = flipBits $ rooks s,
-  king     = flipBits $ king s}
-
--- Rotate a chessboard 180 degrees and swap the color of each piece.
-flipBoard g = Chessboard {
-  black     = flipSuite $ white g,
-  white     = flipSuite $ black g,
-  whoseTurn = flipColor $ whoseTurn g}
-
--- Reverse the order of the bits in a 64-bit integer.
---
--- Warren, Hacker's Delight, p. 101 gives a 32-bit version of this algorithm
--- and points out "These five assignment statements can be executed in any
--- order." Indeed so can ours, though for a completely different reason. :-)
-flipBits :: Word64 -> Word64
-flipBits u =
-  let u2  = (shiftL (u   .&. 0x5555555555555555) 1) .|.
-            (shiftR (u   .&. 0xaaaaaaaaaaaaaaaa) 1)
-      u4  = (shiftL (u2  .&. 0x3333333333333333) 2) .|.
-            (shiftR (u2  .&. 0xcccccccccccccccc) 2)
-      u8  = (shiftL (u4  .&. 0x0f0f0f0f0f0f0f0f) 4) .|.
-            (shiftR (u4  .&. 0xf0f0f0f0f0f0f0f0) 4)
-      u16 = (shiftL (u8  .&. 0x00ff00ff00ff00ff) 8) .|.
-            (shiftR (u8  .&. 0xff00ff00ff00ff00) 8)
-      u32 = (shiftL (u16 .&. 0x0000ffff0000ffff) 16) .|.
-            (shiftR (u16 .&. 0xffff0000ffff0000) 16)
-  in rotateL u32 32
-
-
 --- Reading and writing moves -------------------------------------------------
 
 -- The optional piece at the end here is for pawn promotion.
 data ChessMove = ChessMove Word64 Word64 (Maybe ChessPiece)
   deriving Eq
-
-flipMove (ChessMove from to promote) = ChessMove (flipBits from) (flipBits to) promote
 
 -- This only works for words with a single bit set.
 log2OfBit x = countBit x 0xffffffff00000000 32 .|.
