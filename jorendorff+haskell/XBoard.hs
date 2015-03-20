@@ -6,7 +6,7 @@ import System.IO(hFlush, stdout)
 import System.Exit(exitWith, ExitCode(ExitSuccess))
 import Data.Char(isSpace, ord)
 import Data.Bits(bit, (.|.))
-import Minimax(start, moves, applyMove)
+import Minimax(start, moves, applyMove, scoreFinishedGame)
 import Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(White, Black), chessAI)
 
 data MoveResult = MoveError String | GameOver String | Continue Chessboard
@@ -20,7 +20,13 @@ tryMove board str = case reads str of
     else if not (elem move (moves board))
          then MoveError ("illegal move: " ++ show move)
          else let result = applyMove board move
-              in Continue result -- we are not good at figuring out when the game is over, sorry
+              in case moves result of
+                   [] -> GameOver (case scoreFinishedGame result of
+                                      0 -> "1/2-1/2 {stalemate}"
+                                      _ -> if whoseTurn result == Black
+                                           then "1-0 {White mates}"
+                                           else "0-1 {Black mates}")
+                   _ -> Continue result
 
 ignoredCommands = [
   "xboard", "accepted", "rejected", "variant", "random", "force", "white", "black", "level",
