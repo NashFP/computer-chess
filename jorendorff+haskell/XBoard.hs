@@ -1,11 +1,11 @@
-module XBoard(playXBoard) where
+module XBoard(playXBoard, fenToBoard) where
 
 import Control.Monad(forever)
 import Control.Monad.State(StateT, liftIO, put, get, runStateT)
 import System.IO(hFlush, stdout)
 import System.Exit(exitWith, ExitCode(ExitSuccess))
 import Data.Char(isSpace, ord)
-import Data.Bits(bit, (.|.))
+import Data.Bits(bit, (.|.), shiftL)
 import Minimax(start, moves, applyMove, scoreFinishedGame)
 import Chess(Chessboard(..), Suite(..), ChessMove, ChessColor(White, Black))
 import ChessAI(chessAI)
@@ -59,9 +59,10 @@ fenToBoard str = Chessboard {
     bishops = bitBoard "BQ",
     rooks   = bitBoard "RQ",
     king    = bitBoard "K"},
-  whoseTurn = whoseTurn}
+  whoseTurn = whoseTurn,
+  enPassant = enPassant}
   where
-    [piecesStr, whoseTurnStr, castlingString, enPassantString] = words str
+    piecesStr : whoseTurnStr : castlingString : enPassantString : _ = words str
 
     bitBoard chars = foldr (.|.) 0
                      $ map (\(c, b) -> if c `elem` chars then b else 0)
@@ -85,9 +86,14 @@ fenToBoard str = Chessboard {
     bCastleR = 'k' `elem` castlingString
     wCastleL = 'Q' `elem` castlingString
     wCastleR = 'K' `elem` castlingString
-    enPassantFile
-      | enPassantString == "-" = (-1)
-      | otherwise = fileToInt $ head enPassantString
+
+    enPassant = case enPassantString of
+      "-" -> 0
+      a : _ -> shiftL pawnRow $ fileToInt a
+      where
+        pawnRow = case whoseTurn of
+          White -> 0x0000010000000000
+          Black -> 0x0000000000010000
 
 go ai = do
   board <- get

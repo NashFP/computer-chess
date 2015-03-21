@@ -25,9 +25,13 @@ data Suite = Suite {
   king    :: Word64}
 
 data Chessboard = Chessboard {
-  black    :: Suite,
-  white    :: Suite,
-  whoseTurn :: ChessColor }
+  black     :: Suite,
+  white     :: Suite,
+  whoseTurn :: ChessColor,
+  -- enPassant is usually 0, but immediately after a pawn advances 2 spaces
+  -- from its initial position, enPassant is set to the position the pawn
+  -- skipped, the one an opposing pawn would move to in an en passant capture.
+  enPassant :: Word64}
 
 wholeSuite s = pawns s .|. knights s .|. bishops s .|. rooks s .|. king s
 
@@ -202,6 +206,7 @@ naiveMoves g =
 
     friendlyPieces = wholeSuite friendly
     enemyPieces = wholeSuite enemy
+    enemyPiecesPlusEnPassant = enemyPieces .|. enPassant g
     allPieces = friendlyPieces .|. enemyPieces
 
     listSingleMovesByDir :: (Suite -> Word64) -> (Int, Word64) -> [ChessMove]
@@ -250,7 +255,7 @@ naiveMoves g =
           else []
         listPawnCaptures (shiftAmount, mask) =
           let dest = shift b shiftAmount
-          in if b .&. mask /= 0  &&  dest .&. enemyPieces /= 0
+          in if b .&. mask /= 0  &&  dest .&. enemyPiecesPlusEnPassant /= 0
              then [ChessMove b dest Nothing]
              else []
         pawnCaptures = concatMap listPawnCaptures pawnCaptureDirs
@@ -311,9 +316,9 @@ applyChessMove g (ChessMove fromBit toBit promote) =
       then bits
       else (bits .&. complement fromBit) .|. toBit
 
-    (friends, enemies) = case whoseTurn g of
-      White -> (white g, black g)
-      Black -> (black g, white g)
+    (friends, enemies, forwardShift) = case whoseTurn g of
+      White -> (white g, black g,  8)
+      Black -> (black g, white g, -8)
 
     enemies' = removeAnyPieceAt enemies toBit
 
@@ -335,9 +340,14 @@ applyChessMove g (ChessMove fromBit toBit promote) =
              Bishop -> side' {bishops = bishops side' .|. toBit}
              Rook   -> side' {rooks   = rooks   side' .|. toBit}
 
+    enPassant' = if fromBit .&. pawns friends /= 0
+                    && toBit == shift fromBit (2 * forwardShift)
+                 then shift fromBit forwardShift
+                 else 0
+
   in case whoseTurn g of
-       White -> Chessboard {white = friends', black = enemies', whoseTurn = Black}
-       Black -> Chessboard {white = enemies', black = friends', whoseTurn = White}
+       White -> Chessboard {white = friends', black = enemies', whoseTurn = Black, enPassant = enPassant'}
+       Black -> Chessboard {white = enemies', black = friends', whoseTurn = White, enPassant = enPassant'}
 
 instance Game Chessboard where
   type Move Chessboard = ChessMove
@@ -355,7 +365,8 @@ instance Game Chessboard where
       bishops = 0x000000000000002c,
       rooks   = 0x0000000000000089,
       king    = 0x0000000000000010},
-    whoseTurn = White}
+    whoseTurn = White,
+    enPassant = 0}
 
   moves = legalMoves
 
