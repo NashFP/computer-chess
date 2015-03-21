@@ -10,7 +10,7 @@ import Data.Word
 import Data.List
 import Vs
 
--- TODO castling, en passant
+-- TODO castling
 
 data ChessColor = Black | White
   deriving (Eq, Show)
@@ -300,19 +300,6 @@ legalMoves g = filter (not . leavesSelfInCheck) (naiveMoves g)
             Black -> black g'
       in squareIsThreatenedBy g' myKing you
 
-removeAnyPieceAt :: Suite -> Word64 -> Suite
-removeAnyPieceAt s x =
-  let Suite {pawns = p, knights = n, bishops = b, rooks = r, king = k} = s
-      notx = complement x
-  in if (p .|. n .|. b .|. r) .&. x == 0
-     then s  -- save some memory
-     else Suite {
-       pawns   = p .&. notx,
-       knights = n .&. notx,
-       bishops = b .&. notx,
-       rooks   = r .&. notx,
-       king    = k}
-
 applyChessMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
@@ -324,7 +311,19 @@ applyChessMove g (ChessMove fromBit toBit promote) =
       White -> (white g, black g,  8)
       Black -> (black g, white g, -8)
 
-    enemies' = removeAnyPieceAt enemies toBit
+    enemies' =
+      let Suite {pawns = p, knights = n, bishops = b, rooks = r, king = k} = enemies
+          mask = complement toBit
+          enPassantTarget = enPassant g
+      in if (p .|. n .|. b .|. r) .&. toBit /= 0  -- ordinary capture
+         then enemies {
+           pawns   = p .&. mask,
+           knights = n .&. mask,
+           bishops = b .&. mask,
+           rooks   = r .&. mask}
+         else if toBit == enPassantTarget  &&  pawns friends .&. fromBit /= 0  -- en passant capture
+              then enemies {pawns = p .&. complement (shift toBit (-forwardShift))}
+              else enemies -- no capture: save some memory by reusing this suite
 
     friends' = applyPromotion $ Suite {
       pawns   = applyMoveToBitBoard $ pawns friends,
