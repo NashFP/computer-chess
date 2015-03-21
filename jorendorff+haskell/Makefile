@@ -1,7 +1,7 @@
 play: Chess
 	./Chess
 
-Chess: ChessMain.hs XBoard.hs Chess.hs Minimax.hs Vs.hs
+Chess: ChessMain.hs XBoard.hs Chess.hs Minimax.hs ChessAI.hs Vs.hs
 	ghc -O ChessMain -o Chess
 
 Reversi: Reversi.hs Minimax.hs Vs.hs
@@ -10,4 +10,10 @@ Reversi: Reversi.hs Minimax.hs Vs.hs
 playx: Chess
 	xboard -fcp './Chess --xboard' -debugMode true
 
-.PHONY: play playx
+ChessTest: ChessTest.hs Chess.hs Minimax.hs ChessAI.hs XBoard.hs
+	ghc -O ChessTest
+
+check: ChessTest
+	./ChessTest
+
+.PHONY: play playx check

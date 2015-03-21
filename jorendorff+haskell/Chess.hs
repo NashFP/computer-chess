@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..)) where
+module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..),
+             ChessPiece(..), charsToColRow, getPieceAt) where
 
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
@@ -12,7 +13,7 @@ import Vs
 -- TODO castling, en passant
 
 data ChessColor = Black | White
-  deriving Eq
+  deriving (Eq, Show)
 
 flipColor White = Black
 flipColor Black = White
@@ -39,7 +40,7 @@ wholeSuite s = pawns s .|. knights s .|. bishops s .|. rooks s .|. king s
 --- Printing chessboards ------------------------------------------------------
 
 data ChessPiece = King | Queen | Rook | Knight | Bishop | Pawn
-  deriving Eq
+  deriving (Eq, Show)
 
 whatsInSuiteAt s bit =
   if pawns s .&. bit /= 0 then Just Pawn
@@ -51,7 +52,7 @@ whatsInSuiteAt s bit =
   else if king s .&. bit /= 0 then Just King
   else Nothing
 
-whatsAt g col row =
+getPieceAt g (col, row) =
   let bit = shiftL (1 :: Word64) (8 * row + col)
   in case whatsInSuiteAt (black g) bit of
        Just piece -> Just (Black, piece)
@@ -64,7 +65,7 @@ instance Show Chessboard where
     concat ["    " ++ row r ++ "   " ++ show (r + 1) ++ "\n" | r <- [7, 6 .. 0]]
     ++ "\n    a b c d e f g h\n"
     where
-      row r = intersperse ' ' [toChar $ whatsAt g c r | c <- [0..7] ]
+      row r = intersperse ' ' [toChar $ getPieceAt g (c, r) | c <- [0..7] ]
       toChar Nothing = '.'
       toChar (Just (White, King))   = 'K'
       toChar (Just (White, Queen))  = 'Q'
@@ -109,6 +110,9 @@ instance Show ChessMove where
       Just Knight -> "n"
       Just Rook   -> "r"
       Just Bishop -> "b"
+
+charsToColRow :: String -> (Int, Int)
+charsToColRow [c, r] = (fromEnum c - fromEnum 'a', fromEnum r - fromEnum '1')
 
 charsToBit :: Char -> Char -> Maybe Word64
 charsToBit c r =
