@@ -304,7 +304,7 @@ naiveMoves g =
          castlingMoveIfLegal castleQ moveQ maskQ safeQ
   in if my king == 0
      then []
-     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves -- ++ castlingMoves (disabled due to stack overflow)
+     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves ++ castlingMoves
 
 -- Given the board 'g' and a bit 'square', return true if any of 'color's
 -- pieces are attacking that square.
