@@ -24,8 +24,12 @@ assertNothingAt board squareStr msg =
   let sq = charsToColRow squareStr
   in assertEq (getPieceAt board sq) Nothing msg
 
+liftTestFromEither (Right msg) = putStrLn $ "PASS - "++ msg
+liftTestFromEither (Left msg) = putStrLn $ "FAIL - " ++ msg
 
 main = do
+  mapM_ liftTestFromEither Chess.unitTests
+
   -- Consider a silly example of an en passant position (from a bad puzzle)
   do let board = fenToBoard "6R1/kp6/8/1KpP4/8/8/8/6B1 w - c6 0 36"
      assertEq (enPassant board) 0x0000040000000000 "parse en passant target square"

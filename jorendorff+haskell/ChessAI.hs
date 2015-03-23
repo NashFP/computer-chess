@@ -32,4 +32,4 @@ heuristic g =
        White -> diff
        Black -> -diff
 
-chessAI = bestMoveWithDepthLimit heuristic 2
+chessAI = bestMoveWithDepthLimit heuristic 3

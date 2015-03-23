@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..),
-             ChessPiece(..), charsToColRow, getPieceAt) where
+             ChessPiece(..), charsToColRow, getPieceAt, unitTests) where
 
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
@@ -209,6 +209,176 @@ blackPawnCaptureDirs = [
   (-9, 0xfefefefefefefe00),  -- SW
   (-7, 0x7f7f7f7f7f7f7f00)]  -- SE
 
+shiftN b =        shiftL b 8
+smearN b =
+  let b1 = b  .|. shiftN b
+      b2 = b1 .|. shiftL b1 16
+  in       b2 .|. shiftL b2 32
+
+shiftS b =        shiftR b 8
+smearS b =
+  let b1 = b  .|. shiftS b
+      b2 = b1 .|. shiftR b1 16
+  in       b2 .|. shiftR b2 32
+
+shiftE b =         shiftL b   1 .&. 0xfefefefefefefefe
+smearE b =
+  let b1 = b  .|.  shiftE b
+      b2 = b1 .|. (shiftL b1  2 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftL b2  4 .&. 0xf0f0f0f0f0f0f0f0)
+
+shiftW b =         shiftR b   1 .&. 0x7f7f7f7f7f7f7f7f
+smearW b =
+  let b1 = b  .|.  shiftW b
+      b2 = b1 .|. (shiftR b1  2 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftR b2  4 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftNW b =        shiftL b   7 .&. 0x7f7f7f7f7f7f7f7f
+smearNW b =
+  let b1 = b  .|.  shiftNW b
+      b2 = b1 .|. (shiftL b1 14 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftL b2 28 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftSW b =        shiftR b   9 .&. 0x7f7f7f7f7f7f7f7f
+smearSW b =
+  let b1 = b  .|.  shiftSW b
+      b2 = b1 .|. (shiftR b1 18 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftR b2 36 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftNE b =        shiftL b   9 .&. 0xfefefefefefefefe
+smearNE b =
+  let b1 = b  .|.  shiftNE b
+      b2 = b1 .|. (shiftL b1 18 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftL b2 36 .&. 0xf0f0f0f0f0f0f0f0)
+
+shiftSE b =        shiftR b   7 .&. 0xfefefefefefefefe
+smearSE b =
+  let b1 = b  .|.  shiftSE b
+      b2 = b1 .|. (shiftR b1 14 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftR b2 28 .&. 0xf0f0f0f0f0f0f0f0)
+
+-- Exhaustively test the shiftDir functions
+unitTests :: [Either String String]
+unitTests = map checkDir dirs
+  where
+    dirs :: [(String, Int, Int, Word64 -> Word64, Word64 -> Word64)]
+    dirs = [( "E",  1,  0, shiftE,  smearE),
+            ("NE",  1,  1, shiftNE, smearNE),
+            ( "N",  0,  1, shiftN,  smearN),
+            ("NW", -1,  1, shiftNW, smearNW),
+            ( "W", -1,  0, shiftW,  smearW),
+            ("SW", -1, -1, shiftSW, smearSW),
+            ( "S",  0, -1, shiftS,  smearS),
+            ("SE",  1, -1, shiftSE, smearSE)]
+    squares = [(col, row) | col <- [0..7], row <- [0..7]]
+    slowShift (_, dx, dy, _, _) squares =
+      [(col', row')
+      | (col, row) <- squares,
+        let col' = col + dx,
+        0 <= col' && col' < 8,
+        let row' = row + dy,
+        0 <= row' && row' < 8]
+    slowSmear :: (String, Int, Int, Word64 -> Word64, Word64 -> Word64) -> [(Int, Int)] -> [(Int, Int)]
+    slowSmear dir squares =
+      foldr union [] $ take 8 $ iterate (slowShift dir) squares
+    squareToBit :: (Int, Int) -> Word64
+    squareToBit (col, row) = bit (8 * row + col)
+    squaresToBits squares = foldr (.|.) 0 (map squareToBit squares)
+    checkDir dir@(name, _, _, shift, smear) = do
+      mapM_ (\square -> let expected = squaresToBits (slowShift dir [square])
+                            actual = shift (squareToBit square)
+                        in if actual == expected
+                           then Right "pass"
+                           else Left ("shift" ++ name ++ " " ++ show square ++ ": " ++
+                                      "got " ++ show actual ++ ", expected " ++ show expected)) squares
+      mapM_ (\square -> let expected = squaresToBits (slowSmear dir [square])
+                            actual = smear (squareToBit square)
+                        in if actual == expected
+                           then Right "pass"
+                           else Left ("smear" ++ name ++ " " ++ show square ++ ": " ++
+                                      "got " ++ show actual ++ ", expected " ++ show expected)) squares
+      return $ "shift" ++ name ++ " and smear" ++ name
+
+
+{-# INLINE squareIsAttackedOnRay #-}
+squareIsAttackedOnRay shiftDir smearDir square attackers others =
+  let ray = smearDir (shiftDir square)
+      attackerShadow = smearDir (attackers .&. ray)
+      otherShadow = smearDir (others .&. ray)
+  in attackerShadow /= 0 &&  -- pure optimization to avoid computing otherShadow
+     attackerShadow .&. complement otherShadow /= 0
+
+squareIsAttackedByRook square rooks others =
+  squareIsAttackedOnRay shiftN smearN square rooks others
+  || squareIsAttackedOnRay shiftS smearS square rooks others
+  || squareIsAttackedOnRay shiftW smearW square rooks others
+  || squareIsAttackedOnRay shiftE smearE square rooks others
+
+squareIsAttackedByBishop square bishops others =
+  squareIsAttackedOnRay shiftNE smearNE square bishops others
+  || squareIsAttackedOnRay shiftNW smearNW square bishops others
+  || squareIsAttackedOnRay shiftSW smearSW square bishops others
+  || squareIsAttackedOnRay shiftSE smearSE square bishops others
+
+knightMask = 0x0442800000028440
+
+squareIsAttackedByKnight square knights =
+  rotateL knightMask (log2OfBit square) .&. knights /= 0   -- quick test with false positives
+  && or [square .&. shift (knights .&. mask) shiftAmount /= 0 | (shiftAmount, mask) <- knightDirs]
+
+maskNE = 0x007f7f7f7f7f7f7f
+shiftAmountNE = 9
+
+maskNW = 0x00fefefefefefefe
+shiftAmountNW =  7
+
+squareIsAttackedByWhitePawn square whitePawns =
+     square .&. shift (whitePawns .&. maskNE) shiftAmountNE /= 0
+  || square .&. shift (whitePawns .&. maskNW) shiftAmountNW /= 0
+
+maskSW = 0xfefefefefefefe00
+shiftAmountSW = -9
+
+maskSE = 0x7f7f7f7f7f7f7f00
+shiftAmountSE = -7
+
+squareIsAttackedByBlackPawn square blackPawns =
+     square .&. shift (blackPawns .&. maskSW) shiftAmountSW /= 0
+  || square .&. shift (blackPawns .&. maskSE) shiftAmountSE /= 0
+
+kingMask = 0x8380000000000382
+
+squareIsAttackedByKing square king =
+     square == shiftE  king
+  || square == shiftNE king
+  || square == shiftN  king
+  || square == shiftNW king
+  || square == shiftW  king
+  || square == shiftSW king
+  || square == shiftS  king
+  || square == shiftSE king
+
+-- Given the board 'g' and a bit 'square', return true if any of 'color's
+-- pieces are attacking that square.
+squareIsThreatenedBy g square color =
+  let (attackers, defenders, squareIsAttackedByPawn) = case color of
+        White -> (white g, black g, squareIsAttackedByWhitePawn)
+        Black -> (black g, white g, squareIsAttackedByBlackPawn)
+      allPieces = wholeSuite attackers .|. wholeSuite defenders
+      Suite {rooks=aRooks,
+             bishops=aBishops,
+             knights=aKnights,
+             pawns=aPawns,
+             king=aKing} = attackers
+  in squareIsAttackedByRook square aRooks (allPieces .&. complement aRooks)
+     || squareIsAttackedByBishop square aBishops (allPieces .&. complement aBishops)
+     || squareIsAttackedByKnight square aKnights
+     || squareIsAttackedByPawn square aPawns
+     || squareIsAttackedByKing square aKing
+
+  -- let hypothetical = g {whoseTurn = color}
+  -- in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
+
 rank2 = 0x000000000000ff00  -- white pawns start here
 rank7 = 0x00ff000000000000  -- black pawns start here
 
@@ -305,12 +475,6 @@ naiveMoves g =
   in if my king == 0
      then []
      else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves ++ castlingMoves
-
--- Given the board 'g' and a bit 'square', return true if any of 'color's
--- pieces are attacking that square.
-squareIsThreatenedBy g square color =
-  let hypothetical = g {whoseTurn = color}
-  in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
 
 legalMoves g = filter (not . leavesSelfInCheck) (naiveMoves g)
   where
