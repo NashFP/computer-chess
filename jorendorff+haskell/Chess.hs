@@ -298,6 +298,24 @@ unitTests = map checkDir dirs
                                       "got " ++ show actual ++ ", expected " ++ show expected)) squares
       return $ "shift" ++ name ++ " and smear" ++ name
 
+{-# INLINE movesAlongRay #-}
+movesAlongRay shiftDir smearDir square friends enemies =
+  let ray = smearDir (shiftDir square)
+      friendShadow = smearDir (friends .&. ray)
+      enemyShadow = smearDir (shiftDir (enemies .&. ray))
+  in ray .&. complement (friendShadow .|. enemyShadow)
+
+rookMoveBits square friends enemies =
+      movesAlongRay shiftE smearE square friends enemies
+  .|. movesAlongRay shiftN smearN square friends enemies
+  .|. movesAlongRay shiftW smearW square friends enemies
+  .|. movesAlongRay shiftS smearS square friends enemies
+
+bishopMoveBits square friends enemies =
+      movesAlongRay shiftNE smearNE square friends enemies
+  .|. movesAlongRay shiftNW smearNW square friends enemies
+  .|. movesAlongRay shiftSW smearSW square friends enemies
+  .|. movesAlongRay shiftSE smearSE square friends enemies
 
 {-# INLINE squareIsAttackedOnRay #-}
 squareIsAttackedOnRay shiftDir smearDir square attackers others =
@@ -414,19 +432,14 @@ naiveMoves g =
          then [ChessMove b after Nothing]
          else []
 
-    listRayMovesByDir :: Word64 -> (Int, Word64) -> [ChessMove]
-    listRayMovesByDir b (shiftAmount, mask) = [ChessMove b x Nothing | x <- stoppingPlaces b]
-      where stoppingPlaces c = if c .&. mask == 0
-                               then []
-                               else let c' = shift c shiftAmount
-                                    in if c' .&. friendlyPieces /= 0
-                                       then []
-                                       else if c' .&. enemyPieces /= 0
-                                            then [c']
-                                            else c' : stoppingPlaces c'
+    listRookMoves :: Word64 -> [ChessMove]
+    listRookMoves rook =
+      map (\to -> ChessMove rook to Nothing)
+      $ splitBits $ rookMoveBits rook friendlyPieces enemyPieces
 
-    listRayMoves :: [(Int, Word64)] -> Word64 -> [ChessMove]
-    listRayMoves dirs b = concatMap (listRayMovesByDir b) dirs
+    listBishopMoves bishop =
+      map (\to -> ChessMove bishop to Nothing)
+      $ splitBits $ bishopMoveBits bishop friendlyPieces enemyPieces
 
     listPawnMoves b =
       let
@@ -457,8 +470,8 @@ naiveMoves g =
     my x = x friendly
     pawnMoves = concatMap listPawnMoves $ splitBits $ my pawns
     knightMoves = concatMap (listSingleMovesByDir knights) knightDirs
-    bishopMoves = concatMap (listRayMoves bishopDirs) $ splitBits $ my bishops
-    rookMoves = concatMap (listRayMoves rookDirs) $ splitBits $ my rooks
+    bishopMoves = concatMap listBishopMoves $ splitBits $ my bishops
+    rookMoves = concatMap listRookMoves $ splitBits $ my rooks
     kingMoves = concatMap (listSingleMovesByDir king) kingDirs
     castlingMoves =
       let enemyColor = flipColor $ whoseTurn g
