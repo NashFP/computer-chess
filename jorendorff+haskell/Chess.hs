@@ -357,6 +357,11 @@ squareIsAttackedByKing square king =
 
 -- Given the board 'g' and a bit 'square', return true if any of 'color's
 -- pieces are attacking that square.
+--
+-- This is an optimization of the original algorithm, which was:
+--   let hypothetical = g {whoseTurn = color}
+--   in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
+--
 squareIsThreatenedBy g square color =
   let (attackers, defenders, squareIsAttackedByPawn) = case color of
         White -> (white g, black g, squareIsAttackedByWhitePawn)
@@ -372,9 +377,6 @@ squareIsThreatenedBy g square color =
      || squareIsAttackedByKnight square aKnights
      || squareIsAttackedByPawn square aPawns
      || squareIsAttackedByKing square aKing
-
-  -- let hypothetical = g {whoseTurn = color}
-  -- in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
 
 rank2 = 0x000000000000ff00  -- white pawns start here
 rank7 = 0x00ff000000000000  -- black pawns start here
