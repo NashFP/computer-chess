@@ -44,11 +44,32 @@ infinite compute power, they all really can be played perfectly with the
 same algorithm.)
 
 
+## This program vs. ../jorendorff+cpp
+
+*   The C++ one is a port of some 39-year-old assembly-language code.
+*   The Haskell one is a weekend hack.
+*   The C++ one is really fast
+    but it's not clear from looking at the source code just what it is doing.
+*   The core algorithm for the Haskell one is 5 lines of code
+    *and it can also play Othello*.
+*   The Haskell one is super slow, but it plays better chess.
+
+If you have any more stereotypes about C++ and Haskell
+that you would like confirmed, let me know.
+
+
 ## How to play
 
 Want to play against the computer?
 
-The coolest example I have right now is `Reversi.hs`; use these commands:
+    make play
 
-    ghc -O Reversi
+If you happen to have [xboard](https://www.gnu.org/software/xboard/) installed,
+do this instead:
+
+    make playx
+
+Or if you prefer a simpler game:
+
+    make Reversi
     ./Reversi
