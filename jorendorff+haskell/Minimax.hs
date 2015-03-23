@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Minimax(Game, Move, start, moves, applyMove, scoreFinishedGame, bestMove,
-               bestMoveWithDepthLimit, bestMoveWithTimeLimit) where
+               bestMoveWithDepthLimit) where
 
 import Data.List(maximumBy)
 
@@ -46,21 +46,3 @@ scoreGameWithDepthLimit estimator limit g = case moves g of
   ms -> if limit == 0
         then estimator g
         else -maximum (map (scoreMoveWithDepthLimit estimator (limit - 1) g) ms)
-
-
---- Another approach ----------------------------------------------------------
-
-bestMoveWithTimeLimit estimator limit g =
-  let moveList = moves g
-      limitPerMove = limit `div` length moveList
-  in best (scoreMoveWithTimeLimit estimator limitPerMove 1 g) (moves g)
-
-scoreMoveWithTimeLimit estimator limit debugDepth g m =
-  scoreGameWithTimeLimit estimator limit debugDepth (applyMove g m)
-
-scoreGameWithTimeLimit estimator limit debugDepth g = case moves g of
-  [] -> scoreFinishedGame g
-  moveList -> let limitPerMove = limit `div` length moveList
-              in if limit == 0
-                 then estimator g
-                 else -maximum (map (scoreMoveWithTimeLimit estimator limitPerMove (debugDepth + 1) g) moveList)
