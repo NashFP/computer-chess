@@ -23,7 +23,10 @@ data Suite = Suite {
   knights :: Word64,
   bishops :: Word64,
   rooks   :: Word64,
-  king    :: Word64}
+  king    :: Word64,
+  castleK :: Bool,  -- can still castle on king's side
+  castleQ :: Bool   -- can still castle on queen's side
+  }
 
 data Chessboard = Chessboard {
   black     :: Suite,
@@ -86,6 +89,18 @@ instance Show Chessboard where
 -- The optional piece at the end here is for pawn promotion.
 data ChessMove = ChessMove Word64 Word64 (Maybe ChessPiece)
   deriving Eq
+
+whiteCastles = (
+  -- white castling king's side
+  (ChessMove 0x0000000000000010 0x0000000000000040 Nothing, 0x0000000000000060, 0x0000000000000020),
+  -- white castling queen's side
+  (ChessMove 0x0000000000000010 0x0000000000000004 Nothing, 0x000000000000000e, 0x0000000000000008))
+
+blackCastles = (
+  -- black castling king's side
+  (ChessMove 0x1000000000000000 0x4000000000000000 Nothing, 0x6000000000000000, 0x2000000000000000),
+  -- black castling queen's side
+  (ChessMove 0x1000000000000000 0x0400000000000000 Nothing, 0x0e00000000000000, 0x0800000000000000))
 
 -- This only works for words with a single bit set.
 log2OfBit x = countBit x 0xffffffff00000000 32 .|.
@@ -203,10 +218,10 @@ rank7 = 0x00ff000000000000  -- black pawns start here
 naiveMoves :: Chessboard -> [ChessMove]
 naiveMoves g =
   let
-    (friendly, enemy, pawnHomeRow, pawnPromoteRow, pawnShiftAmount, pawnCaptureDirs) =
+    (friendly, enemy, pawnHomeRow, pawnPromoteRow, pawnShiftAmount, pawnCaptureDirs, castles) =
       case whoseTurn g of
-        White -> (white g, black g, rank2, rank7, 8, whitePawnCaptureDirs)
-        Black -> (black g, white g, rank7, rank2, -8, blackPawnCaptureDirs)
+        White -> (white g, black g, rank2, rank7, 8, whitePawnCaptureDirs, whiteCastles)
+        Black -> (black g, white g, rank7, rank2, -8, blackPawnCaptureDirs, blackCastles)
 
     friendlyPieces = wholeSuite friendly
     enemyPieces = wholeSuite enemy
@@ -276,9 +291,20 @@ naiveMoves g =
     bishopMoves = concatMap (listRayMoves bishopDirs) $ splitBits $ my bishops
     rookMoves = concatMap (listRayMoves rookDirs) $ splitBits $ my rooks
     kingMoves = concatMap (listSingleMovesByDir king) kingDirs
+    castlingMoves =
+      let enemyColor = flipColor $ whoseTurn g
+          ((moveK, maskK, safeK), (moveQ, maskQ, safeQ)) = castles
+          castlingMoveIfLegal canStillCastleBit move mask safe =
+            if canStillCastleBit friendly
+               && allPieces .&. mask == 0
+               && not (squareIsThreatenedBy g safe enemyColor)
+            then [move]
+            else []
+      in castlingMoveIfLegal castleK moveK maskK safeK ++
+         castlingMoveIfLegal castleQ moveQ maskQ safeQ
   in if my king == 0
      then []
-     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves
+     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves -- ++ castlingMoves (disabled due to stack overflow)
 
 -- Given the board 'g' and a bit 'square', return true if any of 'color's
 -- pieces are attacking that square.
@@ -307,9 +333,9 @@ applyChessMove g (ChessMove fromBit toBit promote) =
       then bits
       else (bits .&. complement fromBit) .|. toBit
 
-    (friends, enemies, forwardShift) = case whoseTurn g of
-      White -> (white g, black g,  8)
-      Black -> (black g, white g, -8)
+    (friends, enemies, forwardShift, castleKSpots, castleQSpots) = case whoseTurn g of
+      White -> (white g, black g,  8, 0x0000000000000090, 0x0000000000000011)
+      Black -> (black g, white g, -8, 0x9000000000000000, 0x1100000000000000)
 
     enemies' =
       let Suite {pawns = p, knights = n, bishops = b, rooks = r, king = k} = enemies
@@ -325,12 +351,23 @@ applyChessMove g (ChessMove fromBit toBit promote) =
               then enemies {pawns = p .&. complement (shift toBit (-forwardShift))}
               else enemies -- no capture: save some memory by reusing this suite
 
-    friends' = applyPromotion $ Suite {
+    friends' = finishCastling $ applyPromotion $ Suite {
       pawns   = applyMoveToBitBoard $ pawns friends,
       knights = applyMoveToBitBoard $ knights friends,
       bishops = applyMoveToBitBoard $ bishops friends,
       rooks   = applyMoveToBitBoard $ rooks friends,
-      king    = applyMoveToBitBoard $ king friends}
+      king    = applyMoveToBitBoard $ king friends,
+      castleK = castleK friends  &&  fromBit .&. castleKSpots == 0,
+      castleQ = castleQ friends  &&  fromBit .&. castleQSpots == 0}
+
+    finishCastling side =
+      if fromBit /= king friends
+      then side
+      else if toBit == shiftL fromBit 2
+           then side {rooks = (rooks side .&. complement (shiftL fromBit 3)) .|. shiftL fromBit 1}
+           else if toBit == shiftR fromBit 2
+                then side {rooks = (rooks side .&. complement (shiftR fromBit 4)) .|. shiftR fromBit 1}
+                else side
 
     applyPromotion side = case promote of
       Nothing -> side
@@ -361,13 +398,17 @@ instance Game Chessboard where
       knights = 0x4200000000000000,
       bishops = 0x2c00000000000000,
       rooks   = 0x8900000000000000,
-      king    = 0x1000000000000000},
+      king    = 0x1000000000000000,
+      castleK = True,
+      castleQ = True},
     white = Suite {
       pawns   = 0x000000000000ff00,
       knights = 0x0000000000000042,
       bishops = 0x000000000000002c,
       rooks   = 0x0000000000000089,
-      king    = 0x0000000000000010},
+      king    = 0x0000000000000010,
+      castleK = True,
+      castleQ = True},
     whoseTurn = White,
     enPassant = 0}
 

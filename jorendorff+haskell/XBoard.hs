@@ -47,18 +47,22 @@ fileToInt file = (ord file) - (ord 'a')
 
 fenToBoard :: String -> Chessboard
 fenToBoard str = Chessboard {
-  black = Suite {
-    pawns   = bitBoard "p",
-    knights = bitBoard "n",
-    bishops = bitBoard "bq",
-    rooks   = bitBoard "rq",
-    king    = bitBoard "k"},
   white = Suite {
     pawns   = bitBoard "P",
     knights = bitBoard "N",
     bishops = bitBoard "BQ",
     rooks   = bitBoard "RQ",
-    king    = bitBoard "K"},
+    king    = bitBoard "K",
+    castleK = 'K' `elem` castlingString,
+    castleQ = 'Q' `elem` castlingString},
+  black = Suite {
+    pawns   = bitBoard "p",
+    knights = bitBoard "n",
+    bishops = bitBoard "bq",
+    rooks   = bitBoard "rq",
+    king    = bitBoard "k",
+    castleK = 'k' `elem` castlingString,
+    castleQ = 'q' `elem` castlingString},
   whoseTurn = whoseTurn,
   enPassant = enPassant}
   where
@@ -82,10 +86,6 @@ fenToBoard str = Chessboard {
     whoseTurn = case whoseTurnStr of
                   "w" -> White
                   "b" -> Black
-    bCastleL = 'q' `elem` castlingString
-    bCastleR = 'k' `elem` castlingString
-    wCastleL = 'Q' `elem` castlingString
-    wCastleR = 'K' `elem` castlingString
 
     enPassant = case enPassantString of
       "-" -> 0
