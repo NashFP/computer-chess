@@ -8,9 +8,6 @@ import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), comple
 import Data.Int
 import Data.Word
 import Data.List
-import Vs
-
--- TODO castling
 
 data ChessColor = Black | White
   deriving (Eq, Show)
