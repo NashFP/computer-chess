@@ -325,25 +325,23 @@ squareIsAttackedByKnight square knights =
   rotateL knightMask (log2OfBit square) .&. knights /= 0   -- quick test with false positives
   && or [square .&. shift (knights .&. mask) shiftAmount /= 0 | (shiftAmount, mask) <- knightDirs]
 
-maskNE = 0x007f7f7f7f7f7f7f
-shiftAmountNE = 9
-
-maskNW = 0x00fefefefefefefe
-shiftAmountNW =  7
-
 squareIsAttackedByWhitePawn square whitePawns =
      square .&. shift (whitePawns .&. maskNE) shiftAmountNE /= 0
   || square .&. shift (whitePawns .&. maskNW) shiftAmountNW /= 0
-
-maskSW = 0xfefefefefefefe00
-shiftAmountSW = -9
-
-maskSE = 0x7f7f7f7f7f7f7f00
-shiftAmountSE = -7
+  where
+    maskNE = 0x007f7f7f7f7f7f7f
+    shiftAmountNE = 9
+    maskNW = 0x00fefefefefefefe
+    shiftAmountNW =  7
 
 squareIsAttackedByBlackPawn square blackPawns =
      square .&. shift (blackPawns .&. maskSW) shiftAmountSW /= 0
   || square .&. shift (blackPawns .&. maskSE) shiftAmountSE /= 0
+  where
+    maskSW = 0xfefefefefefefe00
+    shiftAmountSW = -9
+    maskSE = 0x7f7f7f7f7f7f7f00
+    shiftAmountSE = -7
 
 kingMask = 0x8380000000000382
 
