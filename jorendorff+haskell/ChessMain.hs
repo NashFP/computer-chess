@@ -1,4 +1,3 @@
-import Control.Monad.State(runStateT)
 import System.Environment(getArgs)
 import Minimax(start)
 import ChessAI(chessAI)
