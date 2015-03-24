@@ -30,7 +30,7 @@ tryMove board str = case reads str of
                    _ -> Continue result
 
 ignoredCommands = [
-  "xboard", "accepted", "rejected", "variant", "random", "force", "white", "black", "level",
+  "xboard", "accepted", "rejected", "variant", "random", "white", "black", "level",
   "st", "sd", "nps", "time", "otim", "?", "ping", "draw", "result", "edit", "hint", "bk", "undo",
   "remove", "hard", "easy", "post", "nopost", "analyze", "name", "rating", "computer", "option"]
 
@@ -95,14 +95,19 @@ fenToBoard str = Chessboard {
           White -> 0x0000010000000000
           Black -> 0x0000000000010000
 
+data XBoardState = XBoardState { board :: Chessboard, forceMode :: Bool }
+
+setForceMode x = do
+  xbstate <- get
+  put $ xbstate {forceMode = x}
+
 go ai = do
-  board <- get
-  let move = ai board
+  state <- get
+  let move = ai $ board state
   respond $ "move " ++ (show move)
-  put $ applyMove board move
+  put $ state {board = applyMove (board state) move}
 
-
-commandLoop :: (Chessboard -> ChessMove) -> StateT Chessboard IO ()
+commandLoop :: (Chessboard -> ChessMove) -> StateT XBoardState IO ()
 commandLoop ai = forever $ do
   thisLine <- liftIO getLine
   let command = head $ words thisLine
@@ -111,31 +116,34 @@ commandLoop ai = forever $ do
   if command `elem` ignoredCommands
   then return ()
   else case command of
-    "new"      -> put start
+    "new"      -> put $ XBoardState {board = start, forceMode = False}
     "protover" -> respond $ "feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1"
     "quit"     -> liftIO $ exitWith ExitSuccess
+    "force"    -> setForceMode True
     "setboard" -> do
       say arguments
       let boardNow = fenToBoard arguments
-      put $ boardNow
+      state <- get
+      put $ state {board = boardNow}
       say $ show boardNow
     "go" -> do
+      setForceMode False
       go ai
-      boardNow <- get
-      say $ show boardNow
+      stateNow <- get
+      say $ show $ board stateNow
     "usermove" -> do
-      boardBefore <- get
-      case tryMove boardBefore arguments of
+      state <- get
+      case tryMove (board state) arguments of
         MoveError msg -> respond msg
         GameOver msg -> respond msg
         Continue board' -> do
-          put board'
-          go ai
-      boardNow <- get
-      say $ show boardNow
+          put $ state {board = board'}
+          if forceMode state then return () else go ai
+      state' <- get
+      say $ show $ board state'
     _ -> respond $ "Error: (unknown command): " ++ thisLine
 
 playXBoard :: (Chessboard -> ChessMove) -> IO ()
 playXBoard ai = do
-  runStateT (commandLoop ai) start
+  runStateT (commandLoop ai) $ XBoardState {board = start, forceMode = True}
   return ()
