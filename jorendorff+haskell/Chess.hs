@@ -382,19 +382,16 @@ squareIsAttackedByKing square king =
 --
 squareIsThreatenedBy g square color =
   let (attackers, defenders, squareIsAttackedByPawn) = case color of
-        White -> (white g, black g, squareIsAttackedByWhitePawn)
-        Black -> (black g, white g, squareIsAttackedByBlackPawn)
+        White -> (white g, black g, squareIsAttackedByWhitePawn square (pawns attackers))
+        Black -> (black g, white g, squareIsAttackedByBlackPawn square (pawns attackers))
       allPieces = wholeSuite attackers .|. wholeSuite defenders
-      Suite {rooks=aRooks,
-             bishops=aBishops,
-             knights=aKnights,
-             pawns=aPawns,
-             king=aKing} = attackers
+      aRooks = rooks attackers
+      aBishops = bishops attackers
   in squareIsAttackedByRook square aRooks (allPieces .&. complement aRooks)
      || squareIsAttackedByBishop square aBishops (allPieces .&. complement aBishops)
-     || squareIsAttackedByKnight square aKnights
-     || squareIsAttackedByPawn square aPawns
-     || squareIsAttackedByKing square aKing
+     || squareIsAttackedByKnight square (knights attackers)
+     || squareIsAttackedByPawn
+     || squareIsAttackedByKing square (king attackers)
 
 rank2 = 0x000000000000ff00  -- white pawns start here
 rank7 = 0x00ff000000000000  -- black pawns start here
