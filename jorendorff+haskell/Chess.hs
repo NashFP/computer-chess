@@ -1,7 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..),
-             ChessPiece(..), charsToColRow, getPieceAt, unitTests) where
+             ChessPiece(..), charsToColRow, getPieceAt,
+             splitBits,
+             shiftE, smearE, shiftNE, smearNE,
+             shiftN, smearN, shiftNW, smearNW,
+             shiftW, smearW, shiftSW, smearSW,
+             shiftS, smearS, shiftSE, smearSE,
+             unitTests) where
 
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
