@@ -1,27 +1,32 @@
 play: Chess
-	./Chess
+	./Chess +RTS -N4
 
 playx: Chess
-	xboard -fcp './Chess --xboard' -debugMode true
+	xboard -fcp './Chess --xboard +RTS -N4' -debugMode true
+
+GHCFLAGS=-O2 --make -threaded
 
 Chess: ChessMain.hs XBoard.hs Chess.hs Minimax.hs ChessAI.hs Vs.hs
-	ghc -O ChessMain -o Chess
+	ghc $(GHCFLAGS) ChessMain -o Chess
 
 Reversi: Reversi.hs Minimax.hs Vs.hs
-	ghc -O Reversi
+	ghc $(GHCFLAGS) Reversi
 
 Fifteen: Fifteen.hs Minimax.hs Vs.hs
-	ghc -O Fifteen
+	ghc $(GHCFLAGS) Fifteen
 
 Pennies: Pennies.hs Minimax.hs Vs.hs
-	ghc -O Pennies
+	ghc $(GHCFLAGS) Pennies
 
 ChessTest: ChessTest.hs Chess.hs Minimax.hs ChessAI.hs XBoard.hs
-	ghc -O ChessTest
+	ghc $(GHCFLAGS) ChessTest
 
 all: Chess Reversi Fifteen Pennies ChessTest
+
+clean:
+	rm Chess Reversi Fifteen Pennies ChessTest *.hi *.o xboard.debug xboard-input.txt
 
 check: ChessTest
 	./ChessTest
 
-.PHONY: play playx all check
+.PHONY: play playx all clean check
