@@ -54,6 +54,7 @@ scoreGameWithDepthLimit estimator limit g = case moves g of
   [] -> scoreFinishedGame g
   ms -> if limit == 0
         then estimator g
-        else -- This 0.999 causes near-term game-ending moves more attractive than distant ones,
-             -- so the AI doesn't drag a game out unnecessarily.
+        else -- This 0.999 makes near-term game-winning moves more attractive than distant ones,
+             -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
+             -- the AI drag out losing games, but it's the winner's responsibility to end it.)
              -0.999 * maximum (map (scoreMoveWithDepthLimit estimator (limit - 1) g) ms)
