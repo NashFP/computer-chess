@@ -117,8 +117,8 @@ count x lst = length $ filter (== x) lst
 instance Game Reversi where
   type Move Reversi = ReversiMove
   start =
-    let blank = take ((size * (size - 1) - 2) `div` 2) $ repeat Empty
-        mid = take (size - 2) $ repeat Empty
+    let blank = replicate ((size * (size - 1) - 2) `div` 2) Empty
+        mid = replicate (size - 2) Empty
         squareList = blank ++ [White, Black] ++ mid ++ [Black, White] ++ blank
     in Reversi (listArray (0, sizeSq - 1) squareList) Black
 

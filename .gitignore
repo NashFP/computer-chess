@@ -1,8 +1,0 @@
-*~
-*.o
-*.hi
-jorendorff+haskell/Reversi
-jorendorff+haskell/MinimaxDemo
-jorendorff+haskell/Chess
-jorendorff+cpp/microchess
-

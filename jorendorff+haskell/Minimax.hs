@@ -1,15 +1,24 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Minimax(Game, Move, start, moves, applyMove, scoreFinishedGame, bestMove,
-               bestMoveWithDepthLimit, bestMoveWithTimeLimit) where
+               bestMoveWithDepthLimit) where
 
 import Data.List(maximumBy)
+
+-- Hi! If this import doesn't work for you, you just need to `cabal install parallel`. :)
+import Control.Parallel.Strategies(parMap, parTuple2, r0, rseq)
+-- Or you can just delete it, and change the following line of code to:
+--     pmap = map
+--
+-- pmap computes exactly the same thing as map, when it works. There are just two differences:
+-- 1.  pmap can only produce lists of pairs.
+-- 2.  pmap spreads out the computation across multiple CPU cores when you run with +RTS -N4.
+pmap = parMap (parTuple2 r0 rseq)
 
 -- Takes a scoring function and returns the element of the list that has the
 -- greatest score. This applies the scoring function once to each list element.
 best :: Ord n => (x -> n) -> [x] -> x
-best fn xs = fst $ maximumBy (\(a, as) (b, bs) -> compare as bs) $ map (\x -> (x, fn x)) xs
-
+best fn xs = fst $ maximumBy (\(a, as) (b, bs) -> compare as bs) $ pmap (\x -> (x, fn x)) xs
 
 
 --- The essence of a game -----------------------------------------------------
@@ -45,23 +54,7 @@ scoreGameWithDepthLimit estimator limit g = case moves g of
   [] -> scoreFinishedGame g
   ms -> if limit == 0
         then estimator g
-        else -maximum (map (scoreMoveWithDepthLimit estimator (limit - 1) g) ms)
-
-
---- Another approach ----------------------------------------------------------
-
-bestMoveWithTimeLimit estimator limit g =
-  let moveList = moves g
-      limitPerMove = limit `div` length moveList
-  in best (scoreMoveWithTimeLimit estimator limitPerMove 1 g) (moves g)
-
-scoreMoveWithTimeLimit estimator limit debugDepth g m =
-  let score = scoreGameWithTimeLimit estimator limit debugDepth (applyMove g m)
-  in trace (take (debugDepth * 4) (repeat ' ') ++ show m ++ " - " ++ show score) score
-
-scoreGameWithTimeLimit estimator limit debugDepth g = case moves g of
-  [] -> scoreFinishedGame g
-  moveList -> let limitPerMove = limit `div` length moveList
-              in if limit == 0
-                 then estimator g
-                 else -maximum (map (scoreMoveWithTimeLimit estimator limitPerMove (debugDepth + 1) g) moveList)
+        else -- This 0.999 makes near-term game-winning moves more attractive than distant ones,
+             -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
+             -- the AI drag out losing games, but it's the winner's responsibility to end it.)
+             -0.999 * maximum (map (scoreMoveWithDepthLimit estimator (limit - 1) g) ms)

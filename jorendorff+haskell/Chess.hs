@@ -1,63 +1,77 @@
 {-# LANGUAGE TypeFamilies #-}
 
+module Chess(Chessboard(..), Suite(..), wholeSuite, ChessMove, ChessColor(..),
+             ChessPiece(..), charsToColRow, getPieceAt,
+             splitBits,
+             shiftE, smearE, shiftNE, smearNE,
+             shiftN, smearN, shiftNW, smearNW,
+             shiftW, smearW, shiftSW, smearSW,
+             shiftS, smearS, shiftSE, smearSE,
+             unitTests) where
+
 import Minimax
 import Data.Bits(Bits, bit, shift, shiftR, shiftL, rotateL, (.&.), (.|.), complement, popCount)
 import Data.Int
 import Data.Word
 import Data.List
-import Vs
-
--- TODO castling, en passant
 
 data ChessColor = Black | White
-  deriving Eq
+  deriving (Eq, Show)
+
+flipColor White = Black
+flipColor Black = White
+
+data Suite = Suite {
+  pawns   :: Word64,
+  knights :: Word64,
+  bishops :: Word64,
+  rooks   :: Word64,
+  king    :: Word64,
+  castleK :: Bool,  -- can still castle on king's side
+  castleQ :: Bool   -- can still castle on queen's side
+  }
 
 data Chessboard = Chessboard {
-  bPawns   :: Word64,
-  bKnights :: Word64,
-  bBishops :: Word64,
-  bRooks   :: Word64,
-  bKing    :: Word64,
-  wPawns   :: Word64,
-  wKnights :: Word64,
-  wBishops :: Word64,
-  wRooks   :: Word64,
-  wKing    :: Word64,
-  whoseTurn :: ChessColor }
+  black     :: Suite,
+  white     :: Suite,
+  whoseTurn :: ChessColor,
+  -- enPassant is usually 0, but immediately after a pawn advances 2 spaces
+  -- from its initial position, enPassant is set to the position the pawn
+  -- skipped, the one an opposing pawn would move to in an en passant capture.
+  enPassant :: Word64}
 
-allWhitePieces g = wPawns g .|. wKnights g .|. wBishops g .|. wRooks g .|. wKing g
-allBlackPieces g = bPawns g .|. bKnights g .|. bBishops g .|. bRooks g .|. bKing g
+wholeSuite s = pawns s .|. knights s .|. bishops s .|. rooks s .|. king s
 
 
 --- Printing chessboards ------------------------------------------------------
 
 data ChessPiece = King | Queen | Rook | Knight | Bishop | Pawn
-  deriving Eq
+  deriving (Eq, Show)
 
-whatsAt g col row =
-  let b = shiftL (1 :: Word64) (8 * row + col)
-  in if (bPawns g .&. b) /= 0 then Just (Black, Pawn)
-     else if (bKnights g .&. b) /= 0 then Just (Black, Knight)
-     else if (bBishops g .&. b) /= 0 then Just (Black, if (bRooks g .&. b) /= 0
-                                                         then Queen
-                                                         else Bishop)
-     else if (bRooks   g .&. b) /= 0 then Just (Black, Rook)
-     else if (bKing    g .&. b) /= 0 then Just (Black, King)
-     else if (wPawns   g .&. b) /= 0 then Just (White, Pawn)
-     else if (wKnights g .&. b) /= 0 then Just (White, Knight)
-     else if (wBishops g .&. b) /= 0 then Just (White, if (wRooks g .&. b) /= 0
-                                                         then Queen
-                                                         else Bishop)
-     else if (wRooks   g .&. b) /= 0 then Just (White, Rook)
-     else if (wKing    g .&. b) /= 0 then Just (White, King)
-     else Nothing
+whatsInSuiteAt s bit =
+  if pawns s .&. bit /= 0 then Just Pawn
+  else if knights s .&. bit /= 0 then Just Knight
+  else if bishops s .&. bit /= 0 then Just (if rooks s .&. bit /= 0
+                                            then Queen
+                                            else Bishop)
+  else if rooks s .&. bit /= 0 then Just Rook
+  else if king s .&. bit /= 0 then Just King
+  else Nothing
+
+getPieceAt g (col, row) =
+  let bit = shiftL (1 :: Word64) (8 * row + col)
+  in case whatsInSuiteAt (black g) bit of
+       Just piece -> Just (Black, piece)
+       Nothing -> case whatsInSuiteAt (white g) bit of
+         Just piece -> Just (White, piece)
+         Nothing -> Nothing
 
 instance Show Chessboard where
   show g =
     concat ["    " ++ row r ++ "   " ++ show (r + 1) ++ "\n" | r <- [7, 6 .. 0]]
     ++ "\n    a b c d e f g h\n"
     where
-      row r = intersperse ' ' [toChar $ whatsAt g c r | c <- [0..7] ]
+      row r = intersperse ' ' [toChar $ getPieceAt g (c, r) | c <- [0..7] ]
       toChar Nothing = '.'
       toChar (Just (White, King))   = 'K'
       toChar (Just (White, Queen))  = 'Q'
@@ -73,52 +87,27 @@ instance Show Chessboard where
       toChar (Just (Black, Pawn))   = 'p'
 
 
---- Flipping the table --------------------------------------------------------
-
-flipColor White = Black
-flipColor Black = White
-
--- Rotate a chessboard 180 degrees and swap the color of each piece.
-flipBoard g = Chessboard {
-  bPawns   = flipBits $ wPawns g,
-  bKnights = flipBits $ wKnights g,
-  bBishops = flipBits $ wBishops g,
-  bRooks   = flipBits $ wRooks g,
-  bKing    = flipBits $ wKing g,
-
-  wPawns   = flipBits $ bPawns g,
-  wKnights = flipBits $ bKnights g,
-  wBishops = flipBits $ bBishops g,
-  wRooks   = flipBits $ bRooks g,
-  wKing    = flipBits $ bKing g,
-
-  whoseTurn = flipColor $ whoseTurn g}
-
--- Reverse the order of the bits in a 64-bit integer.
-flipBits :: Word64 -> Word64
-flipBits u =
-  let u2  = (shiftL (u   .&. 0x5555555555555555) 1) .|.
-            (shiftR (u   .&. 0xaaaaaaaaaaaaaaaa) 1)
-      u4  = (shiftL (u2  .&. 0x3333333333333333) 2) .|.
-            (shiftR (u2  .&. 0xcccccccccccccccc) 2)
-      u8  = (shiftL (u4  .&. 0x0f0f0f0f0f0f0f0f) 4) .|.
-            (shiftR (u4  .&. 0xf0f0f0f0f0f0f0f0) 4)
-      u16 = (shiftL (u8  .&. 0x00ff00ff00ff00ff) 8) .|.
-            (shiftR (u8  .&. 0xff00ff00ff00ff00) 8)
-      u32 = (shiftL (u16 .&. 0x0000ffff0000ffff) 16) .|.
-            (shiftR (u16 .&. 0xffff0000ffff0000) 16)
-  in rotateL u32 32
-
-
 --- Reading and writing moves -------------------------------------------------
 
 -- The optional piece at the end here is for pawn promotion.
 data ChessMove = ChessMove Word64 Word64 (Maybe ChessPiece)
   deriving Eq
 
-flipMove (ChessMove from to promote) = ChessMove (flipBits from) (flipBits to) promote
+whiteCastles = (
+  -- white castling king's side
+  (ChessMove 0x0000000000000010 0x0000000000000040 Nothing, 0x0000000000000060, 0x0000000000000020),
+  -- white castling queen's side
+  (ChessMove 0x0000000000000010 0x0000000000000004 Nothing, 0x000000000000000e, 0x0000000000000008))
 
--- This only works for words with a single bit set.
+blackCastles = (
+  -- black castling king's side
+  (ChessMove 0x1000000000000000 0x4000000000000000 Nothing, 0x6000000000000000, 0x2000000000000000),
+  -- black castling queen's side
+  (ChessMove 0x1000000000000000 0x0400000000000000 Nothing, 0x0e00000000000000, 0x0800000000000000))
+
+-- Computes (64 - countLeadingZeros x), assuming x only has a single bit
+-- set. Unfortunately countLeadingZeros isn't in Data.Bits in the current
+-- stable GHC as of this writing.
 log2OfBit x = countBit x 0xffffffff00000000 32 .|.
               countBit x 0xffff0000ffff0000 16 .|.
               countBit x 0xff00ff00ff00ff00  8 .|.
@@ -141,6 +130,9 @@ instance Show ChessMove where
       Just Knight -> "n"
       Just Rook   -> "r"
       Just Bishop -> "b"
+
+charsToColRow :: String -> (Int, Int)
+charsToColRow [c, r] = (fromEnum c - fromEnum 'a', fromEnum r - fromEnum '1')
 
 charsToBit :: Char -> Char -> Maybe Word64
 charsToBit c r =
@@ -172,7 +164,7 @@ splitBit x = let k = x .&. complement (x - 1)
 -- Return a list of all the 1 bits set in the argument.
 --     splitBits 0x89 == [0x01, 0x08, 0x80]
 splitBits :: (Bits a, Num a) => a -> [a]
-splitBits = unfoldr splitBit 
+splitBits = unfoldr splitBit
 
 -- rookDirs and friends are lists of pairs (shift, mask). 'shift' tells how
 -- much to shift a bit to move the corresponding piece in this direction.
@@ -194,7 +186,7 @@ rookDirs = [
 
 bishopDirs :: [(Int, Word64)]
 bishopDirs = [
-  (-9, 0xfefefefefefefe00),  -- SW, I think
+  (-9, 0xfefefefefefefe00),  -- SW
   (-7, 0x7f7f7f7f7f7f7f00),  -- SE
   ( 7, 0x00fefefefefefefe),  -- NW
   ( 9, 0x007f7f7f7f7f7f7f)]  -- NE
@@ -217,19 +209,218 @@ whitePawnCaptureDirs = [
   ( 7, 0x00fefefefefefefe),  -- NW
   ( 9, 0x007f7f7f7f7f7f7f)]  -- NE
 
-whiteMoves g =
+blackPawnCaptureDirs :: [(Int, Word64)]
+blackPawnCaptureDirs = [
+  (-9, 0xfefefefefefefe00),  -- SW
+  (-7, 0x7f7f7f7f7f7f7f00)]  -- SE
+
+shiftN b =        shiftL b 8
+smearN b =
+  let b1 = b  .|. shiftN b
+      b2 = b1 .|. shiftL b1 16
+  in       b2 .|. shiftL b2 32
+
+shiftS b =        shiftR b 8
+smearS b =
+  let b1 = b  .|. shiftS b
+      b2 = b1 .|. shiftR b1 16
+  in       b2 .|. shiftR b2 32
+
+shiftE b =         shiftL b   1 .&. 0xfefefefefefefefe
+smearE b =
+  let b1 = b  .|.  shiftE b
+      b2 = b1 .|. (shiftL b1  2 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftL b2  4 .&. 0xf0f0f0f0f0f0f0f0)
+
+shiftW b =         shiftR b   1 .&. 0x7f7f7f7f7f7f7f7f
+smearW b =
+  let b1 = b  .|.  shiftW b
+      b2 = b1 .|. (shiftR b1  2 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftR b2  4 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftNW b =        shiftL b   7 .&. 0x7f7f7f7f7f7f7f7f
+smearNW b =
+  let b1 = b  .|.  shiftNW b
+      b2 = b1 .|. (shiftL b1 14 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftL b2 28 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftSW b =        shiftR b   9 .&. 0x7f7f7f7f7f7f7f7f
+smearSW b =
+  let b1 = b  .|.  shiftSW b
+      b2 = b1 .|. (shiftR b1 18 .&. 0x3f3f3f3f3f3f3f3f)
+  in       b2 .|. (shiftR b2 36 .&. 0x0f0f0f0f0f0f0f0f)
+
+shiftNE b =        shiftL b   9 .&. 0xfefefefefefefefe
+smearNE b =
+  let b1 = b  .|.  shiftNE b
+      b2 = b1 .|. (shiftL b1 18 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftL b2 36 .&. 0xf0f0f0f0f0f0f0f0)
+
+shiftSE b =        shiftR b   7 .&. 0xfefefefefefefefe
+smearSE b =
+  let b1 = b  .|.  shiftSE b
+      b2 = b1 .|. (shiftR b1 14 .&. 0xfcfcfcfcfcfcfcfc)
+  in       b2 .|. (shiftR b2 28 .&. 0xf0f0f0f0f0f0f0f0)
+
+-- Exhaustively test the shiftDir functions
+unitTests :: [Either String String]
+unitTests = map checkDir dirs
+  where
+    dirs :: [(String, Int, Int, Word64 -> Word64, Word64 -> Word64)]
+    dirs = [( "E",  1,  0, shiftE,  smearE),
+            ("NE",  1,  1, shiftNE, smearNE),
+            ( "N",  0,  1, shiftN,  smearN),
+            ("NW", -1,  1, shiftNW, smearNW),
+            ( "W", -1,  0, shiftW,  smearW),
+            ("SW", -1, -1, shiftSW, smearSW),
+            ( "S",  0, -1, shiftS,  smearS),
+            ("SE",  1, -1, shiftSE, smearSE)]
+    squares = [(col, row) | col <- [0..7], row <- [0..7]]
+    slowShift (_, dx, dy, _, _) squares =
+      [(col', row')
+      | (col, row) <- squares,
+        let col' = col + dx,
+        0 <= col' && col' < 8,
+        let row' = row + dy,
+        0 <= row' && row' < 8]
+    slowSmear :: (String, Int, Int, Word64 -> Word64, Word64 -> Word64) -> [(Int, Int)] -> [(Int, Int)]
+    slowSmear dir squares =
+      foldr union [] $ take 8 $ iterate (slowShift dir) squares
+    squareToBit :: (Int, Int) -> Word64
+    squareToBit (col, row) = bit (8 * row + col)
+    squaresToBits squares = foldr (.|.) 0 (map squareToBit squares)
+    checkDir dir@(name, _, _, shift, smear) = do
+      mapM_ (\square -> let expected = squaresToBits (slowShift dir [square])
+                            actual = shift (squareToBit square)
+                        in if actual == expected
+                           then Right "pass"
+                           else Left ("shift" ++ name ++ " " ++ show square ++ ": " ++
+                                      "got " ++ show actual ++ ", expected " ++ show expected)) squares
+      mapM_ (\square -> let expected = squaresToBits (slowSmear dir [square])
+                            actual = smear (squareToBit square)
+                        in if actual == expected
+                           then Right "pass"
+                           else Left ("smear" ++ name ++ " " ++ show square ++ ": " ++
+                                      "got " ++ show actual ++ ", expected " ++ show expected)) squares
+      return $ "shift" ++ name ++ " and smear" ++ name
+
+{-# INLINE movesAlongRay #-}
+movesAlongRay shiftDir smearDir square friends enemies =
+  let ray = smearDir (shiftDir square)
+      friendShadow = smearDir (friends .&. ray)
+      enemyShadow = smearDir (shiftDir (enemies .&. ray))
+  in ray .&. complement (friendShadow .|. enemyShadow)
+
+rookMoveBits square friends enemies =
+      movesAlongRay shiftE smearE square friends enemies
+  .|. movesAlongRay shiftN smearN square friends enemies
+  .|. movesAlongRay shiftW smearW square friends enemies
+  .|. movesAlongRay shiftS smearS square friends enemies
+
+bishopMoveBits square friends enemies =
+      movesAlongRay shiftNE smearNE square friends enemies
+  .|. movesAlongRay shiftNW smearNW square friends enemies
+  .|. movesAlongRay shiftSW smearSW square friends enemies
+  .|. movesAlongRay shiftSE smearSE square friends enemies
+
+{-# INLINE squareIsAttackedOnRay #-}
+squareIsAttackedOnRay shiftDir smearDir square attackers others =
+  let ray = smearDir (shiftDir square)
+      attackerShadow = smearDir (attackers .&. ray)
+      otherShadow = smearDir (others .&. ray)
+  in attackerShadow /= 0 &&  -- pure optimization to avoid computing otherShadow
+     attackerShadow .&. complement otherShadow /= 0
+
+squareIsAttackedByRook square rooks others =
+  squareIsAttackedOnRay shiftN smearN square rooks others
+  || squareIsAttackedOnRay shiftS smearS square rooks others
+  || squareIsAttackedOnRay shiftW smearW square rooks others
+  || squareIsAttackedOnRay shiftE smearE square rooks others
+
+squareIsAttackedByBishop square bishops others =
+  squareIsAttackedOnRay shiftNE smearNE square bishops others
+  || squareIsAttackedOnRay shiftNW smearNW square bishops others
+  || squareIsAttackedOnRay shiftSW smearSW square bishops others
+  || squareIsAttackedOnRay shiftSE smearSE square bishops others
+
+knightMask = 0x0442800000028440
+
+squareIsAttackedByKnight square knights =
+  rotateL knightMask (log2OfBit square) .&. knights /= 0   -- quick test with false positives
+  && or [square .&. shift (knights .&. mask) shiftAmount /= 0 | (shiftAmount, mask) <- knightDirs]
+
+squareIsAttackedByWhitePawn square whitePawns =
+     square .&. shift (whitePawns .&. maskNE) shiftAmountNE /= 0
+  || square .&. shift (whitePawns .&. maskNW) shiftAmountNW /= 0
+  where
+    maskNE = 0x007f7f7f7f7f7f7f
+    shiftAmountNE = 9
+    maskNW = 0x00fefefefefefefe
+    shiftAmountNW =  7
+
+squareIsAttackedByBlackPawn square blackPawns =
+     square .&. shift (blackPawns .&. maskSW) shiftAmountSW /= 0
+  || square .&. shift (blackPawns .&. maskSE) shiftAmountSE /= 0
+  where
+    maskSW = 0xfefefefefefefe00
+    shiftAmountSW = -9
+    maskSE = 0x7f7f7f7f7f7f7f00
+    shiftAmountSE = -7
+
+kingMask = 0x8380000000000382
+
+squareIsAttackedByKing square king =
+     square == shiftE  king
+  || square == shiftNE king
+  || square == shiftN  king
+  || square == shiftNW king
+  || square == shiftW  king
+  || square == shiftSW king
+  || square == shiftS  king
+  || square == shiftSE king
+
+-- Given the board 'g' and a bit 'square', return true if any of 'color's
+-- pieces are attacking that square.
+--
+-- This is an optimization of the original algorithm, which was:
+--   let hypothetical = g {whoseTurn = color}
+--   in any (\(ChessMove _ to _ ) -> to == square) $ naiveMoves hypothetical
+--
+squareIsThreatenedBy g square color =
+  let (attackers, defenders, squareIsAttackedByPawn) = case color of
+        White -> (white g, black g, squareIsAttackedByWhitePawn square (pawns attackers))
+        Black -> (black g, white g, squareIsAttackedByBlackPawn square (pawns attackers))
+      allPieces = wholeSuite attackers .|. wholeSuite defenders
+      aRooks = rooks attackers
+      aBishops = bishops attackers
+  in squareIsAttackedByRook square aRooks (allPieces .&. complement aRooks)
+     || squareIsAttackedByBishop square aBishops (allPieces .&. complement aBishops)
+     || squareIsAttackedByKnight square (knights attackers)
+     || squareIsAttackedByPawn
+     || squareIsAttackedByKing square (king attackers)
+
+rank2 = 0x000000000000ff00  -- white pawns start here
+rank7 = 0x00ff000000000000  -- black pawns start here
+
+-- Return the list of all moves, without eliminating moves that leave
+-- the current player's king in check. Moves where a piece would capture
+-- an opposing king are also included (indeed we rely on this).
+naiveMoves :: Chessboard -> [ChessMove]
+naiveMoves g =
   let
-    whitePieces :: Word64
-    whitePieces = allWhitePieces g
+    (friendly, enemy, pawnHomeRow, pawnPromoteRow, pawnShiftAmount, pawnCaptureDirs, castles) =
+      case whoseTurn g of
+        White -> (white g, black g, rank2, rank7, 8, whitePawnCaptureDirs, whiteCastles)
+        Black -> (black g, white g, rank7, rank2, -8, blackPawnCaptureDirs, blackCastles)
 
-    blackPieces :: Word64
-    blackPieces = allBlackPieces g
+    friendlyPieces = wholeSuite friendly
+    enemyPieces = wholeSuite enemy
+    enemyPiecesPlusEnPassant = enemyPieces .|. enPassant g
+    allPieces = friendlyPieces .|. enemyPieces
 
-    allPieces = whitePieces .|. blackPieces
-
-    listSingleMovesByDir :: (Chessboard -> Word64) -> (Int, Word64) -> [ChessMove]
+    listSingleMovesByDir :: (Suite -> Word64) -> (Int, Word64) -> [ChessMove]
     listSingleMovesByDir field (shiftAmount, mask) =
-      concatMap (trySingleMove shiftAmount) $ splitBits $ field g .&. mask
+      concatMap (trySingleMove shiftAmount) $ splitBits $ field friendly .&. mask
 
     -- Try a single move. We are already guaranteed that the piece will land on
     -- the board when we move it in this direction; but we still need to check
@@ -240,146 +431,172 @@ whiteMoves g =
     trySingleMove shiftAmount b =
       let after :: Word64
           after = shift b shiftAmount
-      in if (after .&. whitePieces) == 0
+      in if (after .&. friendlyPieces) == 0
          then [ChessMove b after Nothing]
          else []
 
-    listRayMovesByDir :: Word64 -> (Int, Word64) -> [ChessMove]
-    listRayMovesByDir b (shiftAmount, mask) = [ChessMove b x Nothing | x <- stoppingPlaces b]
-      where stoppingPlaces c = if c .&. mask == 0
-                               then []
-                               else let c' = shift c shiftAmount
-                                    in if c' .&. whitePieces /= 0
-                                       then []
-                                       else if c' .&. blackPieces /= 0
-                                            then [c']
-                                            else c' : stoppingPlaces c'
+    listRookMoves :: Word64 -> [ChessMove]
+    listRookMoves rook =
+      map (\to -> ChessMove rook to Nothing)
+      $ splitBits $ rookMoveBits rook friendlyPieces enemyPieces
 
-    listRayMoves :: [(Int, Word64)] -> Word64 -> [ChessMove]
-    listRayMoves dirs b = concatMap (listRayMovesByDir b) dirs
+    listBishopMoves bishop =
+      map (\to -> ChessMove bishop to Nothing)
+      $ splitBits $ bishopMoveBits bishop friendlyPieces enemyPieces
 
     listPawnMoves b =
       let
-        dest1 = shiftL b 8
+        dest1 = shift b pawnShiftAmount
         move1 = ChessMove b dest1 Nothing
-        dest2 = shiftL dest1 8
+        dest2 = shift dest1 pawnShiftAmount
         move2 = ChessMove b dest2 Nothing
         pawnForwardMoves =
           if allPieces .&. dest1 == 0
-          then if b .&. 0x000000000000ff00 /= 0  -- pawn is in row 2
+          then if b .&. pawnHomeRow /= 0  -- pawn is in home row
                   && allPieces .&. dest2 == 0
                then [move1, move2]
                else [move1]
           else []
         listPawnCaptures (shiftAmount, mask) =
           let dest = shift b shiftAmount
-          in if b .&. mask /= 0  &&  dest .&. blackPieces /= 0
+          in if b .&. mask /= 0  &&  dest .&. enemyPiecesPlusEnPassant /= 0
              then [ChessMove b dest Nothing]
              else []
-        pawnCaptures = concatMap listPawnCaptures whitePawnCaptureDirs
+        pawnCaptures = concatMap listPawnCaptures pawnCaptureDirs
         movesWithoutPromotion = pawnForwardMoves ++ pawnCaptures
         promote (ChessMove orig dest _) =
           [ChessMove orig dest (Just p) | p <- [Queen, Knight, Rook, Bishop]]
-      in if b .&. 0x00ff000000000000 /= 0  -- pawn is in row 7
+      in if b .&. pawnPromoteRow /= 0  -- pawn is in seventh rank
          then concatMap promote movesWithoutPromotion
          else movesWithoutPromotion
 
-    pawnMoves = concatMap listPawnMoves $ splitBits $ wPawns g
-    knightMoves = concatMap (listSingleMovesByDir wKnights) knightDirs
-    bishopMoves = concatMap (listRayMoves bishopDirs) $ splitBits $ wBishops g
-    rookMoves = concatMap (listRayMoves rookDirs) $ splitBits $ wRooks g
-    kingMoves = concatMap (listSingleMovesByDir wKing) kingDirs
-  in if wKing g == 0
+    my x = x friendly
+    pawnMoves = concatMap listPawnMoves $ splitBits $ my pawns
+    knightMoves = concatMap (listSingleMovesByDir knights) knightDirs
+    bishopMoves = concatMap listBishopMoves $ splitBits $ my bishops
+    rookMoves = concatMap listRookMoves $ splitBits $ my rooks
+    kingMoves = concatMap (listSingleMovesByDir king) kingDirs
+    castlingMoves =
+      let enemyColor = flipColor $ whoseTurn g
+          ((moveK, maskK, safeK), (moveQ, maskQ, safeQ)) = castles
+          castlingMoveIfLegal canStillCastleBit move mask safe =
+            if canStillCastleBit friendly
+               && allPieces .&. mask == 0
+               && not (squareIsThreatenedBy g safe enemyColor)
+            then [move]
+            else []
+      in castlingMoveIfLegal castleK moveK maskK safeK ++
+         castlingMoveIfLegal castleQ moveQ maskQ safeQ
+  in if my king == 0
      then []
-     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves
+     else pawnMoves ++ knightMoves ++ bishopMoves ++ rookMoves ++ kingMoves ++ castlingMoves
 
-applyWhiteMove g (ChessMove fromBit toBit promote) =
+legalMoves g = filter (not . leavesSelfInCheck) (naiveMoves g)
+  where
+    -- Suppose it's white to play. Then m is a move by white, and g' is the board
+    -- after that move. In g' it is black's turn. We want to know if white's king
+    -- is threatened by black's pieces.
+    leavesSelfInCheck m =
+      let me = whoseTurn g
+          you = flipColor me
+          g' = applyMove g m
+          myKing = king $ case me of
+            White -> white g'
+            Black -> black g'
+      in squareIsThreatenedBy g' myKing you
+
+applyChessMove g (ChessMove fromBit toBit promote) =
   let
     applyMoveToBitBoard bits =
       if bits .&. fromBit == 0
       then bits
       else (bits .&. complement fromBit) .|. toBit
-    g' = Chessboard {
-       bPawns   = bPawns g   .&. complement toBit,
-       bKnights = bKnights g .&. complement toBit,
-       bBishops = bBishops g .&. complement toBit,
-       bRooks   = bRooks g   .&. complement toBit,
-       bKing    = bKing g    .&. complement toBit,
-       wPawns   = applyMoveToBitBoard $ wPawns g,
-       wKnights = applyMoveToBitBoard $ wKnights g,
-       wBishops = applyMoveToBitBoard $ wBishops g,
-       wRooks   = applyMoveToBitBoard $ wRooks g,
-       wKing    = applyMoveToBitBoard $ wKing g,
-       whoseTurn = Black}
-  in case promote of
-    Nothing -> g'
-    Just piece ->
-      let g'' = g' {wPawns = wPawns g' .&. complement toBit}
-      in case piece of
-        Queen  -> g'' {wBishops = wBishops g'' .|. toBit,
-                       wRooks   = wRooks   g'' .|. toBit}
-        Knight -> g'' {wKnights = wKnights g'' .|. toBit}
-        Bishop -> g'' {wBishops = wBishops g'' .|. toBit}
-        Rook   -> g'' {wRooks   = wRooks   g'' .|. toBit}
+
+    (friends, enemies, forwardShift, castleKSpots, castleQSpots) = case whoseTurn g of
+      White -> (white g, black g,  8, 0x0000000000000090, 0x0000000000000011)
+      Black -> (black g, white g, -8, 0x9000000000000000, 0x1100000000000000)
+
+    enemies' =
+      let Suite {pawns = p, knights = n, bishops = b, rooks = r, king = k} = enemies
+          mask = complement toBit
+          enPassantTarget = enPassant g
+      in if (p .|. n .|. b .|. r) .&. toBit /= 0  -- ordinary capture
+         then enemies {
+           pawns   = p .&. mask,
+           knights = n .&. mask,
+           bishops = b .&. mask,
+           rooks   = r .&. mask}
+         else if toBit == enPassantTarget  &&  pawns friends .&. fromBit /= 0  -- en passant capture
+              then enemies {pawns = p .&. complement (shift toBit (-forwardShift))}
+              else enemies -- no capture: save some memory by reusing this suite
+
+    friends' = finishCastling $ applyPromotion $ Suite {
+      pawns   = applyMoveToBitBoard $ pawns friends,
+      knights = applyMoveToBitBoard $ knights friends,
+      bishops = applyMoveToBitBoard $ bishops friends,
+      rooks   = applyMoveToBitBoard $ rooks friends,
+      king    = applyMoveToBitBoard $ king friends,
+      castleK = castleK friends  &&  fromBit .&. castleKSpots == 0,
+      castleQ = castleQ friends  &&  fromBit .&. castleQSpots == 0}
+
+    finishCastling side =
+      if fromBit /= king friends
+      then side
+      else if toBit == shiftL fromBit 2
+           then side {rooks = (rooks side .&. complement (shiftL fromBit 3)) .|. shiftL fromBit 1}
+           else if toBit == shiftR fromBit 2
+                then side {rooks = (rooks side .&. complement (shiftR fromBit 4)) .|. shiftR fromBit 1}
+                else side
+
+    applyPromotion side = case promote of
+      Nothing -> side
+      Just piece ->
+        let side' = side {pawns = pawns side .&. complement toBit}
+        in case piece of
+             Queen  -> side' {bishops = bishops side' .|. toBit,
+                              rooks   = rooks   side' .|. toBit}
+             Knight -> side' {knights = knights side' .|. toBit}
+             Bishop -> side' {bishops = bishops side' .|. toBit}
+             Rook   -> side' {rooks   = rooks   side' .|. toBit}
+
+    enPassant' = if fromBit .&. pawns friends /= 0
+                    && toBit == shift fromBit (2 * forwardShift)
+                 then shift fromBit forwardShift
+                 else 0
+
+  in case whoseTurn g of
+       White -> Chessboard {white = friends', black = enemies', whoseTurn = Black, enPassant = enPassant'}
+       Black -> Chessboard {white = enemies', black = friends', whoseTurn = White, enPassant = enPassant'}
 
 instance Game Chessboard where
   type Move Chessboard = ChessMove
 
   start = Chessboard {
-    bPawns   = 0x00ff000000000000,
-    bKnights = 0x4200000000000000,
-    bBishops = 0x2c00000000000000,
-    bRooks   = 0x8900000000000000,
-    bKing    = 0x1000000000000000,
-    wPawns   = 0x000000000000ff00,
-    wKnights = 0x0000000000000042,
-    wBishops = 0x000000000000002c,
-    wRooks   = 0x0000000000000089,
-    wKing    = 0x0000000000000010,
-    whoseTurn = White}
+    black = Suite {
+      pawns   = 0x00ff000000000000,
+      knights = 0x4200000000000000,
+      bishops = 0x2c00000000000000,
+      rooks   = 0x8900000000000000,
+      king    = 0x1000000000000000,
+      castleK = True,
+      castleQ = True},
+    white = Suite {
+      pawns   = 0x000000000000ff00,
+      knights = 0x0000000000000042,
+      bishops = 0x000000000000002c,
+      rooks   = 0x0000000000000089,
+      king    = 0x0000000000000010,
+      castleK = True,
+      castleQ = True},
+    whoseTurn = White,
+    enPassant = 0}
 
-  moves g = case whoseTurn g of
-    White -> whiteMoves g
-    Black -> map flipMove $ whiteMoves $ flipBoard g
+  moves = legalMoves
 
-  applyMove g move = case whoseTurn g of
-    White -> applyWhiteMove g move
-    Black -> flipBoard $ applyWhiteMove (flipBoard g) (flipMove move)
+  applyMove = applyChessMove
 
-  -- Instead of implementing the baroque checkmate rules of chess,
-  -- we simply call the game over if an enemy captures your king.
-  -- This has one drawback: stalemate is not scored as 0.0.
   scoreFinishedGame g =
-    let threatenedKing = if whoseTurn g == White then wKing g else bKing g
-    in if threatenedKing == 0 then 1 else 0
-
--- The first heuristic I attempted was this amazingly bad one:
-heuristic0 g = 0
-
--- Then I tried this almost-as-bad heuristic: just count pieces :)
-heuristic1 g = 0.05 * fromIntegral (popCount (allBlackPieces g) - popCount (allWhitePieces g))
-
--- Now we're at the point where we give the pieces values. The scores here are
--- from Wikipedia, which lists a dozen or more scoring systems to choose
--- from. This one is credited to Hans Berliner.
---     Since we have this bizarre thing where a queen is represented as a
--- bishop and a rook, the code below counts the queen first as a bishop and
--- then as a rook, for 3.33 + 5.1 = 8.43 points. But in Berliner's system a
--- queen is worth 8.80 points, so we add another line of code to add .37 points
--- if the queen is still around.
-heuristic g =
-  let diff blk wht = fromIntegral $ popCount (blk g) - popCount (wht g)
-      totalDiff = diff bPawns wPawns
-                  + 3.2 * diff bKnights wKnights
-                  + 3.33 * diff bBishops wBishops
-                  + 5.1 * diff bRooks wRooks
-                  + 0.37 * diff (\g -> bBishops g .&. bRooks g)
-                                (\g -> wBishops g .&. wRooks g)
-      signedDiff = case whoseTurn g of
-        White -> totalDiff
-        Black -> -totalDiff
-  in 0.001 * signedDiff
-
-chessAI = bestMoveWithDepthLimit heuristic 4
-
-main = playHumanVsComputer chessAI start
+    let side = case whoseTurn g of
+          White -> white g
+          Black -> black g
+    in if squareIsThreatenedBy g (king side) (flipColor $ whoseTurn g) then 1 else 0

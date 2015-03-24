@@ -38,6 +38,7 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
@@ -676,7 +677,7 @@ static const char *cph = "KQRRBBNNPPPPPPPPkqrrbbnnpppppppp";
  * The following routines were added to allow text-based board
  * display over a standard RS-232 port.
  */
-static void pout() {
+static void pout(FILE *f) {
     char bd[8][8];
     for (int r = 0; r < 8; r++)
         for (int c = 0; c < 8; c++)
@@ -690,19 +691,19 @@ static void pout() {
     }
 
     for (int r = 0; r < 8; r++) {
-        printf("    ");
+        fprintf(f, "    ");
         for (int c = 0; c < 8; c++) {
-            putchar(bd[r][c]);
-            putchar(' ');
+            fputc(bd[r][c], f);
+            fputc(' ', f);
         }
-        printf("  %d\n", r + 1);
+        fprintf(f, "  %d\n", r + 1);
     }
-    printf("\n    h g f e d c b a    ");
+    fprintf(f, "\n    h g f e d c b a    ");
 
-    printf("    %02X %02X %02X\n",
-           (unsigned) (uint8_t) bestp,
-           (unsigned) (uint8_t) bestv,
-           (unsigned) (uint8_t) bestm);
+    fprintf(f, "    %02X %02X %02X\n",
+            (unsigned) (uint8_t) bestp,
+            (unsigned) (uint8_t) bestv,
+            (unsigned) (uint8_t) bestm);
 }
 
 static void setup() {
@@ -710,12 +711,52 @@ static void setup() {
     omove = 27;
 }
 
-
 #define LINE_SIZE 256
 
+static char column_char(uint8_t square) {
+    return 'a' + (7 - (square & 7));
+}
+
+static char row_char(uint8_t square) {
+    return '1' + ((square >> 4) & 7);
+}
+
 static void print_square(uint8_t square) {
-    putchar('a' + (7 - (square & 7)));
-    putchar('1' + ((square >> 4) & 7));
+    putchar(column_char(square));
+    putchar(row_char(square));
+}
+
+static bool parse_move(const char *s, int *from, int *to) {
+    char c = *s++;
+    if (!('a' <= c && c <= 'h'))
+        return false;
+    *from = 7 - (c - 'a');
+
+    c = *s++;
+    if (!('1' <= c && c <= '8'))
+        return false;
+    *from |= (c - '1') << 4;
+
+    c = *s++;
+    if (!('a' <= c && c <= 'h'))
+        return false;
+    *to = 7 - (c - 'a');
+
+    c = *s++;
+    if (!('1' <= c && c <= '8'))
+        return false;
+    *to |= (c - '1') << 4;
+    return true;
+}
+
+void apply_move(int from, int to) {
+    bestv = from;
+    bestm = to;
+    square = dis3;
+    disp();
+    sp2 = stack + STACK_SIZE;
+    move();
+    disp();
 }
 
 static int chess() {
@@ -725,7 +766,7 @@ static int chess() {
     putchar('\n');
     setup();
     dis1 = dis2 = dis3 = 0xcc;
-    pout();
+    pout(stdout);
 
     for (;;) {
         printf("> ");
@@ -751,42 +792,21 @@ static int chess() {
                 print_square(bestm);
                 putchar('\n');
             }
-            pout();
+            pout(stdout);
         } else if (c == 'r') {
             reverse();                      // REVERSE BOARD IS
             rev = !rev;                     // TOGGLE REV FLAG
             dis1 = dis2 = dis3 = 0xee;
-            pout();
+            pout(stdout);
         } else if ('a' <= c && c <= 'h') {
             int from, to;
 
-            i++;
-            from = 7 - (c - 'a');
-
-            c = line[i++];
-            if (!('1' <= c && c <= '8')) {
+            if (!parse_move(line + i, &from, &to)) {
                 printf("*** unrecognized command\n");
                 continue;
             }
-            from |= (c - '1') << 4;
 
-            while (isspace(line[i]) || line[i] == '-')
-                i++;
-
-            c = line[i++];
-            if (!('a' <= c && c <= 'h')) {
-                printf("*** unrecognized command\n");
-                continue;
-            }
-            to = 7 - (c - 'a');
-
-            c = line[i++];
-            if (!('1' <= c && c <= '8')) {
-                printf("*** unrecognized command\n");
-                continue;
-            }
-            to |= (c - '1') << 4;
-
+            i += 4;
             while (isspace(line[i]))
                 i++;
             if (line[i] != '\0') {
@@ -794,20 +814,132 @@ static int chess() {
                 continue;
             }
 
-            bestv = from;
-            bestm = to;
-            square = dis3;
-            disp();
-            sp2 = stack + STACK_SIZE;
-            move();
-            disp();
-            pout();
+            apply_move(from, to);
+            pout(stdout);
         } else {
             printf("*** unrecognized command\n");
         }
     }
 }
 
-int main() {
-    return chess();
+
+/*** XBoard support **********************************************************/
+
+static const char *ignoredCommands[] = {
+    "xboard", "accepted", "rejected", "variant", "random", "force", "white", "black", "level",
+    "st", "sd", "nps", "time", "otim", "?", "ping", "draw", "result", "edit", "hint", "bk", "undo",
+    "remove", "hard", "easy", "post", "nopost", "analyze", "name", "rating", "computer", "option",
+    NULL
+};
+
+static FILE *logfile = NULL;
+
+static void log(const char *format, ...) {
+    va_list ap;
+
+    va_start(ap, format);
+    vfprintf(logfile, format, ap);
+    va_end(ap);
+    fflush(logfile);
+}
+
+static void respond(const char *s) {
+    puts(s);
+    fflush(stdout);
+    log("<-- %s\n", s);
+}
+
+static void xboard_go() {
+    sp2 = stack + STACK_SIZE;
+    if (go() != 0) {
+        respond("0-1 {White resigns}");
+    } else {
+        char move[20];
+        snprintf(move, sizeof(move), "move %c%c%c%c",
+                 column_char(bestv),
+                 row_char(bestv),
+                 column_char(bestm),
+                 row_char(bestm));
+        respond(move);
+    }
+    pout(logfile);
+}
+
+static int play_xboard() {
+    bool forceMode = false;
+
+    logfile = fopen("./microchess-xboard.log", "a");
+    if (!logfile) {
+        perror("microchess: error opening log file");
+        return 1;
+    }
+
+    char line[LINE_SIZE];
+    for (;;) {
+        if (!fgets(line, LINE_SIZE, stdin)) {
+            perror("microchess: input error");
+            return 1;
+        }
+
+        log("--> %s\n", line);
+
+        char *p = line;
+        while (*p != '\0' && !isspace(*p))
+            p++;
+        bool more = *p != '\0';
+        if (more)
+            *p++ = '\0';
+
+        if (strcmp(line, "new") == 0) {
+            setup();
+        } else if (strcmp(line, "protover") == 0) {
+            respond("feature variants=\"normal\" usermove=1 draw=0 analyze=0 "
+                    "colors=0 setboard=0 sigint=0 done=1");
+        } else if (strcmp(line, "quit") == 0) {
+            exit(0);
+        } else if (strcmp(line, "force") == 0) {
+            forceMode = true;
+        } else if (strcmp(line, "go") == 0) {
+            forceMode = false;
+            xboard_go();
+        } else if (strcmp(line, "usermove") == 0) {
+            int from, to;
+            if (!parse_move(p, &from, &to)) {
+                respond("Error: unknown command");
+                break;
+            }
+            apply_move(from, to);
+            pout(logfile);
+            if (!forceMode)
+                xboard_go();
+        } else {
+            bool found = false;
+            for (const char **q = ignoredCommands; *q; q++) {
+                if (strcmp(line, *q) == 0) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                respond("Error: unknown command");
+                break;
+            }
+        }
+    }
+
+    fclose(logfile);
+    logfile = NULL;
+    return 0;
+}
+
+
+/* * */
+
+int main(int argc, const char **argv) {
+    if (argc == 1)
+        return chess();
+    if (argc == 2 && strcmp(argv[1], "--xboard") == 0)
+        return play_xboard();
+    fprintf(stderr, "usage: %s [--xboard]\n", argv[0]);
+    return 1;
 }
