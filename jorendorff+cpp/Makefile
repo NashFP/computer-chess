@@ -17,4 +17,7 @@ microchess: microchess.cpp
 check: microchess
 	python tests/test.py
 
-.PHONY: play playx play-vs check
+clean:
+	rm -f *.o microchess microchess-xboard.log xboard-input.txt xboard.debug
+
+.PHONY: play playx play-vs check clean

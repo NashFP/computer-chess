@@ -23,10 +23,10 @@ ChessTest: ChessTest.hs Chess.hs Minimax.hs ChessAI.hs XBoard.hs
 
 all: Chess Reversi Fifteen Pennies ChessTest
 
-clean:
-	rm Chess Reversi Fifteen Pennies ChessTest *.hi *.o xboard.debug xboard-input.txt
-
 check: ChessTest
 	./ChessTest
+
+clean:
+	rm -f Chess Reversi Fifteen Pennies ChessTest *.hi *.o xboard.debug xboard-input.txt
 
 .PHONY: play playx all clean check
