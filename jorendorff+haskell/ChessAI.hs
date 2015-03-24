@@ -1,7 +1,7 @@
 module ChessAI(chessAI) where
 
 import Minimax(bestMoveWithDepthLimit)
-import Data.Bits(popCount, complement, (.&.), (.|.))
+import Data.Bits(popCount, complement, (.&.), (.|.), shiftL, shiftR)
 import Chess
 
 -- The first heuristic I attempted was this amazingly bad one:
@@ -35,7 +35,7 @@ materialAdvantageForWhite g =
 
 -- Now, for each piece, give its side a small bonus for the number of squares it
 -- attacks, and for each friendly piece it protects.
-heuristic g =
+heuristic3 g =
   let
     diff = 0.00000001 * fromIntegral (1000 * materialAdvantageForWhite g
                                       + mobilityAdvantageForWhite g)
@@ -80,5 +80,30 @@ mobilityAdvantageForWhite g =
       + (sum $ map knightMobility $ splitBits $ knights side)
   in mobility w - mobility b
 
+-- Now, add some points for pawns attacking and defending other pieces.
+heuristic g =
+  let
+    diff = 0.00000001 * fromIntegral (1000 * materialAdvantageForWhite g
+                                      + 3 * mobilityAdvantageForWhite g
+                                      + 2 * pawnAdvantageForWhite g)
+  in case whoseTurn g of
+       White -> -diff
+       Black -> diff
+
+pawnAdvantageForWhite g =
+  let w = white g
+      wAll = wholeSuite w
+      wPawns = pawns w
+      b = black g
+      bAll = wholeSuite b
+      bPawns = pawns b
+      allPieces = wAll .|. bAll    -- cf. Seuss 1963 "Hop On Pop"
+      whitePawnBonus =
+          (popCount $ allPieces .&. shiftL (wPawns .&. 0x00fefefefefefefe) 7)  -- NW
+        + (popCount $ allPieces .&. shiftL (wPawns .&. 0x007f7f7f7f7f7f7f) 9)  -- NE
+      blackPawnBonus =
+          (popCount $ allPieces .&. shiftR (bPawns .&. 0x7f7f7f7f7f7f7f00) 7)  -- SE
+        + (popCount $ allPieces .&. shiftR (bPawns .&. 0xfefefefefefefe00) 9)  -- SW
+  in whitePawnBonus - blackPawnBonus
 
 chessAI = bestMoveWithDepthLimit heuristic 3
