@@ -49,8 +49,6 @@ mobilityAdvantageForWhite g =
     b = black g
     allPieces = wholeSuite w .|. wholeSuite b
 
-    -- Give each side points for all the squares each piece attacks or
-    -- each friendly piece it protects.
     {-# INLINE movesAndProtectsAlongRay #-}
     movesAndProtectsAlongRay shiftDir smearDir square =
       let ray = smearDir (shiftDir square)
@@ -67,22 +65,14 @@ mobilityAdvantageForWhite g =
       .|. movesAndProtectsAlongRay shiftSW smearSW square
       .|. movesAndProtectsAlongRay shiftSE smearSE square
     knightMobility square =
-      {- 2 3 4 4 4 4 3 2
-         3 4 6 6 6 6 4 3
-         4 6 8 8 8 8 6 4
-         4 6 8 8 8 8 6 4
-         4 6 8 8 8 8 6 4
-         4 6 8 8 8 8 6 4
-         3 4 6 6 6 6 4 3
-         2 3 4 4 4 4 3 2 -}
-      if square .&. 0xffc381818181c3ff /= 0
-      then if square .&. 0x8100000000000081 /= 0
-           then 2
-           else if square .&. 0x4281000000008142 /= 0
-                then 3
-                else 4
-      else if square .&. 0x00003c3c3c3c0000 /= 0
-           then 8
+      if square .&. 0xffc381818181c3ff /= 0            -- 2 3 4 4 4 4 3 2
+      then if square .&. 0x8100000000000081 /= 0       -- 3 4 6 6 6 6 4 3
+           then 2                                      -- 4 6 8 8 8 8 6 4
+           else if square .&. 0x4281000000008142 /= 0  -- 4 6 8 8 8 8 6 4
+                then 3                                 -- 4 6 8 8 8 8 6 4
+                else 4                                 -- 4 6 8 8 8 8 6 4
+      else if square .&. 0x00003c3c3c3c0000 /= 0       -- 3 4 6 6 6 6 4 3
+           then 8                                      -- 2 3 4 4 4 4 3 2
            else 6
     mobility side =
         (sum $ map rookMobility $ splitBits $ rooks side)
