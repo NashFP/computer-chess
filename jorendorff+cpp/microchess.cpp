@@ -892,6 +892,7 @@ static int play_xboard() {
 
         if (strcmp(line, "new") == 0) {
             setup();
+            dis1 = dis2 = dis3 = 0xcc;
         } else if (strcmp(line, "protover") == 0) {
             respond("feature variants=\"normal\" usermove=1 draw=0 analyze=0 "
                     "colors=0 setboard=0 sigint=0 done=1");
