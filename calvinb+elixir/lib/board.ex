@@ -284,7 +284,7 @@ defmodule Board do
 
   defp maybe_move_piece(piece, move) do
     if piece.square == move.from do
-      %{piece | square: move.to}
+      move_piece_to(piece, move.to)
     else
       piece
     end
@@ -296,6 +296,18 @@ defmodule Board do
     board
     |> Enum.reject(&(&1 == captured))
     |> Enum.map(&maybe_move_piece(&1, from_to))
+  end
+
+  defp move_piece_to(piece = %Piece{type: :P, color: :black}, square = %Square{rank: 1}) do
+    %{piece | square: square, type: :Q}
+  end
+
+  defp move_piece_to(piece = %Piece{type: :P, color: :white}, square = %Square{rank: 8}) do
+    %{piece | square: square, type: :Q}
+  end
+
+  defp move_piece_to(piece, square) do
+    %{piece | square: square}
   end
 
   def new do

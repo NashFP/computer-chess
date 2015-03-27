@@ -301,4 +301,11 @@ defmodule BoardTest do
     board = Board.new
     _ = Board.alpha_beta(board, :white, 1)
   end
+
+  test "should queen white pawn" do
+    board = Board.parse("WPa7")
+    {:ok, move} = Move.parse("a7a8")
+    new_board = Board.move(board, move)
+    assert new_board == Board.parse("WQa8")
+  end
 end
