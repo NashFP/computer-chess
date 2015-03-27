@@ -20,12 +20,25 @@ So consider this a benchmark.
 
 ## How to play
 
-    g++ -o microchess microchess.cpp
-    ./microchess
+If you have [XBoard](https://www.gnu.org/software/xboard/) installed,
+this is super easy:
 
-I wrote the user interface.
-It&rsquo;s text-only, but if you think that&rsquo;s primitive, consider that
-MicroChess in its original form communicated through seven-segment displays.
+    make playx
+
+This will compile MicroChess and run XBoard with MicroChess playing
+white against you.
+
+![Here's a picture of XBoard moving 7. Qa4](images/MicroChess.jpeg)
+
+
+## Playing in text mode
+
+    make play
+
+There's also a text-only user interface.
+
+If you think that&rsquo;s primitive, consider that MicroChess in its
+original form communicated through seven-segment displays.
 
 *   Type <kbd>Q</kbd> and hit <kbd>Enter</kbd> to quit.
 
