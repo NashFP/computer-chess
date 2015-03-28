@@ -861,6 +861,11 @@ static void xboard_go() {
                  column_char(bestm),
                  row_char(bestm));
         respond(move);
+
+        // If, improbably enough, MicroChess castled, move the rook since
+        // MicroChess has forgotten to do it.
+        if (bestv == 0x03 && bestm == 0x01)  // e1g1
+            apply_move(0x00, 0x02);  // h1f1
     }
     pout(logfile);
 }
@@ -909,7 +914,13 @@ static int play_xboard() {
                 respond("Error: unknown command");
                 break;
             }
+
+            // Move black's piece. If black castled, move the rook too.
+            bool is_castle = bk[0] == from && (from + 2 == to || from - 2 == to);
             apply_move(from, to);
+            if (is_castle)
+                bk[to < from ? 2 : 3] = (from + to) / 2;
+
             pout(logfile);
             if (!forceMode)
                 xboard_go();
