@@ -50,6 +50,13 @@ defmodule BoardTest do
     assert new_board == [Piece.parse("WPe5+")]
   end
 
+  test "castling should move king and rook" do
+    board = Board.parse("WRa1 WKe1")
+    {:ok, move} = Move.parse("e1b1")
+    new_board = Board.move(board, move)
+    assert new_board == Board.parse("WRc1+ WKb1+")
+  end
+
   test "review move should complain when no piece on starting square" do
     board = [Piece.parse("WPa2")]
     {:ok, move} = Move.parse("a1b1")

@@ -111,6 +111,16 @@ defmodule Board do
     |> List.first
   end
 
+  defp finish_castling(board, king = %Piece{square: %Square{file: :b}}) do
+    move(board, %Move{from: %Square{file: :a, rank: king.square.rank}, 
+                      to:   %Square{file: :c, rank: king.square.rank}})
+  end
+
+  defp finish_castling(board, king = %Piece{square: %Square{file: :g}}) do
+    move(board, %Move{from: %Square{file: :h, rank: king.square.rank}, 
+                      to:   %Square{file: :f, rank: king.square.rank}})
+  end
+
   def get_best_move_for_color(color, board) do
     search_root(board, color, 2)
   end
@@ -326,11 +336,21 @@ defmodule Board do
     end
   end
 
+  defp maybe_finish_castling(board, from_to) do
+    case piece_on(from_to.to, board) do
+      king = %Piece{type: :K} ->
+        case Square.file_diff(from_to.from, from_to.to) > 1 do
+          true  -> finish_castling(board, king)
+          false -> board
+        end
+      _ -> board
+    end
+  end
+
   defp maybe_move_piece(piece, move) do
-    if piece.square == move.from do
-      move_piece_to(piece, move.to)
-    else
-      piece
+    case piece.square == move.from do
+      true  -> move_piece_to(piece, move.to)
+      false -> piece
     end
   end
 
@@ -340,6 +360,7 @@ defmodule Board do
     board
     |> Enum.reject(&(&1 == captured))
     |> Enum.map(&maybe_move_piece(&1, from_to))
+    |> maybe_finish_castling(from_to)
   end
 
   defp move_piece_to(piece = %Piece{type: :P, color: :black}, square = %Square{rank: 1}) do

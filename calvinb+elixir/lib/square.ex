@@ -11,6 +11,12 @@ defmodule Square do
     end
   end
 
+  def file_diff(square1, square2) do
+    int1 = square1.file |> to_char_list |> List.first
+    int2 = square2.file |> to_char_list |> List.first
+    abs(int1 - int2)
+  end
+
   def move(nil, _), do: nil
 
   def move(square = %Square{}, {dx, dy}) do
