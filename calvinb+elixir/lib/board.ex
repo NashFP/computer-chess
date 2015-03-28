@@ -299,15 +299,15 @@ defmodule Board do
   end
 
   defp move_piece_to(piece = %Piece{type: :P, color: :black}, square = %Square{rank: 1}) do
-    %{piece | square: square, type: :Q}
+    %{piece | square: square, has_moved: true, type: :Q}
   end
 
   defp move_piece_to(piece = %Piece{type: :P, color: :white}, square = %Square{rank: 8}) do
-    %{piece | square: square, type: :Q}
+    %{piece | square: square, has_moved: true, type: :Q}
   end
 
   defp move_piece_to(piece, square) do
-    %{piece | square: square}
+    %{piece | square: square, has_moved: true}
   end
 
   def new do

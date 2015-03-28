@@ -40,14 +40,14 @@ defmodule BoardTest do
     board = [Piece.parse("WPa2"), Piece.parse("WRa1")]
     {:ok, move} = Move.parse("a2a4")
     new_board = Board.move(board, move)
-    assert new_board == [Piece.parse("WPa4"), Piece.parse("WRa1")]
+    assert new_board == [Piece.parse("WPa4+"), Piece.parse("WRa1")]
   end
 
   test "capture move should remove piece" do
     board = [Piece.parse("WPd4"), Piece.parse("BPe5")]
     {:ok, move} = Move.parse("d4e5")
     new_board = Board.move(board, move)
-    assert new_board == [Piece.parse("WPe5")]
+    assert new_board == [Piece.parse("WPe5+")]
   end
 
   test "review move should complain when no piece on starting square" do
@@ -306,6 +306,14 @@ defmodule BoardTest do
     board = Board.parse("WPa7")
     {:ok, move} = Move.parse("a7a8")
     new_board = Board.move(board, move)
-    assert new_board == Board.parse("WQa8")
+    assert new_board == Board.parse("WQa8+")
+  end
+
+  test "should update has_moved when moving piece" do
+    piece = Piece.parse("WRa1")
+    board = [piece]
+    {:ok, move} = Move.parse("a1a2")
+    [new_piece] = Board.move(board, move)
+    assert new_piece.has_moved == true
   end
 end
