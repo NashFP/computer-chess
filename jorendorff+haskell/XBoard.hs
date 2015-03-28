@@ -1,8 +1,8 @@
 module XBoard(playXBoard, fenToBoard) where
 
 import Control.Monad(forever)
-import Control.Monad.State(StateT, liftIO, put, get, runStateT)
 import System.IO(hFlush, stdout)
+import Data.IORef(newIORef, readIORef, writeIORef, modifyIORef)
 import System.Exit(exitWith, ExitCode(ExitSuccess))
 import Data.Char(isSpace, ord)
 import Data.Bits(bit, (.|.), shiftL)
@@ -34,13 +34,13 @@ ignoredCommands = [
   "st", "sd", "nps", "time", "otim", "?", "ping", "draw", "result", "edit", "hint", "bk", "undo",
   "remove", "hard", "easy", "post", "nopost", "analyze", "name", "rating", "computer", "option"]
 
-respond :: String -> StateT a IO ()
-respond str = liftIO $ do
+respond :: String -> IO ()
+respond str = do
   putStrLn str
   hFlush stdout
   appendFile "xboard-input.txt" $ (concat $ map ("<-- " ++) (lines str)) ++ "\n"
 
-say str = liftIO $ appendFile "xboard-input.txt" str
+say str = appendFile "xboard-input.txt" str
 
 fileToInt :: Char -> Int
 fileToInt file = (ord file) - (ord 'a')
@@ -95,55 +95,52 @@ fenToBoard str = Chessboard {
           White -> 0x0000010000000000
           Black -> 0x0000000000010000
 
-data XBoardState = XBoardState { board :: Chessboard, forceMode :: Bool }
-
-setForceMode x = do
-  xbstate <- get
-  put $ xbstate {forceMode = x}
-
-go ai = do
-  state <- get
-  let move = ai $ board state
-  respond $ "move " ++ (show move)
-  put $ state {board = applyMove (board state) move}
-
-commandLoop :: (Chessboard -> ChessMove) -> StateT XBoardState IO ()
-commandLoop ai = forever $ do
-  thisLine <- liftIO getLine
-  let command = head $ words thisLine
-  let arguments = drop ((length command) + 1) thisLine
-  say $ "--> " ++ thisLine ++ "\n"                           
-  if command `elem` ignoredCommands
-  then return ()
-  else case command of
-    "new"      -> put $ XBoardState {board = start, forceMode = False}
-    "protover" -> respond $ "feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1"
-    "quit"     -> liftIO $ exitWith ExitSuccess
-    "force"    -> setForceMode True
-    "setboard" -> do
-      say arguments
-      let boardNow = fenToBoard arguments
-      state <- get
-      put $ state {board = boardNow}
-      say $ show boardNow
-    "go" -> do
-      setForceMode False
-      go ai
-      stateNow <- get
-      say $ show $ board stateNow
-    "usermove" -> do
-      state <- get
-      case tryMove (board state) arguments of
-        MoveError msg -> respond msg
-        GameOver msg -> respond msg
-        Continue board' -> do
-          put $ state {board = board'}
-          if forceMode state then return () else go ai
-      state' <- get
-      say $ show $ board state'
-    _ -> respond $ "Error: (unknown command): " ++ thisLine
+get = readIORef
+set = writeIORef
 
 playXBoard :: (Chessboard -> ChessMove) -> IO ()
 playXBoard ai = do
-  runStateT (commandLoop ai) $ XBoardState {board = start, forceMode = True}
-  return ()
+  boardRef <- newIORef start
+  forceModeRef <- newIORef True
+
+  let go = do board <- get boardRef
+              let move = ai board
+              respond $ "move " ++ (show move)
+              set boardRef $ applyMove board move
+
+  forever $ do
+    thisLine <- getLine
+    let command = head $ words thisLine
+    let arguments = drop ((length command) + 1) thisLine
+    say $ "--> " ++ thisLine ++ "\n"
+    if command `elem` ignoredCommands
+    then return ()
+    else case command of
+      "new"      -> do
+        set boardRef start
+        set forceModeRef False
+      "protover" -> respond $ "feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1"
+      "quit"     -> exitWith ExitSuccess
+      "force"    -> set forceModeRef True
+      "setboard" -> do
+        say arguments
+        let boardNow = fenToBoard arguments
+        set boardRef boardNow
+        say $ show boardNow
+      "go" -> do
+        set forceModeRef False
+        go
+        boardNow <- get boardRef
+        say $ show $ boardNow
+      "usermove" -> do
+        board <- get boardRef
+        case tryMove board arguments of
+          MoveError msg -> respond msg
+          GameOver msg -> respond msg
+          Continue board' -> do
+            set boardRef board'
+            forceMode <- get forceModeRef
+            if forceMode then return () else go
+        board <- get boardRef
+        say $ show board
+      _ -> respond $ "Error: (unknown command): " ++ thisLine
