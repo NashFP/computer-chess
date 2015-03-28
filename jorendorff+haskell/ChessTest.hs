@@ -2,16 +2,18 @@ import Chess
 import ChessAI
 import Minimax
 import XBoard
+import System.IO(hFlush, stdout)
 
 assert True msg = putStrLn $ "PASS - " ++ msg
 assert False msg = putStrLn $ "FAIL - " ++ msg
 
 move str = (read str :: ChessMove)
 
-assertEq actual expected msg =
+assertEq actual expected msg = do
   if actual == expected
-  then putStrLn $ "PASS - " ++ msg
-  else putStrLn $ "FAIL - " ++ msg ++ " (got " ++ show actual ++ ", expected " ++ show expected ++ ")"
+     then putStrLn $ "PASS - " ++ msg
+     else putStrLn $ "FAIL - " ++ msg ++ " (got " ++ show actual ++ ", expected " ++ show expected ++ ")"
+  hFlush stdout
 
 assertLegalMove g moveStr msg =
   let actualMoves = moves g
