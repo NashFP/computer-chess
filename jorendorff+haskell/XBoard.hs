@@ -116,31 +116,28 @@ playXBoard ai = do
     if command `elem` ignoredCommands
     then return ()
     else case command of
-      "new"      -> do
-        set boardRef start
-        set forceModeRef False
-      "protover" -> respond $ "feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1"
+      "new"      -> do set boardRef start
+                       set forceModeRef False
+      "protover" -> respond $ "feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 "
+                              ++ "setboard=1 sigint=0 done=1"
       "quit"     -> exitWith ExitSuccess
       "force"    -> set forceModeRef True
-      "setboard" -> do
-        say arguments
-        let boardNow = fenToBoard arguments
-        set boardRef boardNow
-        say $ show boardNow
-      "go" -> do
-        set forceModeRef False
-        go
-        boardNow <- get boardRef
-        say $ show $ boardNow
-      "usermove" -> do
-        board <- get boardRef
-        case tryMove board arguments of
-          MoveError msg -> respond msg
-          GameOver msg -> respond msg
-          Continue board' -> do
-            set boardRef board'
-            forceMode <- get forceModeRef
-            if forceMode then return () else go
-        board <- get boardRef
-        say $ show board
-      _ -> respond $ "Error: (unknown command): " ++ thisLine
+      "setboard" -> do say arguments
+                       let boardNow = fenToBoard arguments
+                       set boardRef boardNow
+                       say $ show boardNow
+      "go"       -> do set forceModeRef False
+                       go
+                       boardNow <- get boardRef
+                       say $ show $ boardNow
+      "usermove" -> do board <- get boardRef
+                       case tryMove board arguments of
+                         MoveError msg -> respond msg
+                         GameOver msg -> respond msg
+                         Continue board' -> do
+                           set boardRef board'
+                           forceMode <- get forceModeRef
+                           if forceMode then return () else go
+                       board <- get boardRef
+                       say $ show board
+      _          -> respond $ "Error: (unknown command): " ++ thisLine
