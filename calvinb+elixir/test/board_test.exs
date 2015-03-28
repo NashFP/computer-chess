@@ -285,6 +285,22 @@ defmodule BoardTest do
     assert targets == ["d1", "d2", "e2", "f1", "f2"] |> Enum.map(&Square.parse/1)
   end
 
+  test "should include long castling in king targets" do
+    rook = Piece.parse("WRa1")
+    king = Piece.parse("WKe1")
+    board = [rook, king]
+    targets = Board.get_targets(king, board)
+    assert List.last(targets) == Square.parse("b1")
+  end
+
+  test "should include short castling in king targets" do
+    rook = Piece.parse("WRh1")
+    king = Piece.parse("WKe1")
+    board = [rook, king]
+    targets = Board.get_targets(king, board)
+    assert List.last(targets) == Square.parse("g1")
+  end
+
   test "get lead by type" do
     board = Board.parse("WPa2 WPb2 BPa7")
     lead = Board.lead_by_type(board, :P, :white)

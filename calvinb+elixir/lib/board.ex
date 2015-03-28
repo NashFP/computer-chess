@@ -115,6 +115,12 @@ defmodule Board do
     search_root(board, color, 2)
   end
 
+  defp get_castling_targets(board, king = %Piece{type: :K, has_moved: false}) do
+    Enum.concat(maybe_castle_left(board, king), maybe_castle_right(board, king))
+  end
+
+  defp get_castling_targets(_, _), do: []
+
   defp get_long_targets(directions, piece, board) do
     directions
     |> Enum.map(&long_move(piece.square, piece.color, board, &1))
@@ -187,6 +193,7 @@ defmodule Board do
 
     Piece.get_moves(piece)
     |> f.(piece, board)
+    |> Enum.concat(get_castling_targets(board, piece))
   end
 
   def has_color_at?(square, color, board) do
@@ -194,6 +201,16 @@ defmodule Board do
       nil         -> false
       other_piece -> other_piece.color == color
     end
+  end
+
+  defp has_unmoved_rook?(board, color, file) do
+    is_unmoved_rook? = fn(piece) ->
+      case piece do
+        %Piece{type: :R, color: ^color, square: %Square{file: ^file}, has_moved: false} -> true
+        _ -> false
+      end
+    end
+    Enum.any?(board, is_unmoved_rook?)
   end
 
   # No ? on name because it's not a predicate; returns Square or nil, not Boolean
@@ -279,6 +296,33 @@ defmodule Board do
       %Piece{color: ^color} -> result
       nil                   -> long_move(next_square, color, board, next, [next_square|result])
       _                     -> [next_square|result]
+    end
+  end
+
+  defp maybe_castle_left(board, king = %Piece{type: :K, has_moved: false}) do
+    spot_empty? = fn(file) ->
+      piece_on(%Square{file: file, rank: king.square.rank}, board) == nil
+    end
+
+    path_clear = Enum.all?([:b, :c, :d], spot_empty?)
+    has_rook = has_unmoved_rook?(board, king.color, :a)
+
+    case path_clear and has_rook do
+      true -> [%Square{file: :b, rank: king.square.rank}]
+      false -> []
+    end
+  end
+
+  defp maybe_castle_right(board, king = %Piece{type: :K, has_moved: false}) do
+    spot_empty? = fn(file) ->
+      piece_on(%Square{file: file, rank: king.square.rank}, board) == nil
+    end
+
+    path_clear = Enum.all?([:f, :g], spot_empty?)
+
+    case path_clear and has_unmoved_rook?(board, king.color, :h) do
+      true -> [%Square{file: :g, rank: king.square.rank}]
+      false -> []
     end
   end
 
