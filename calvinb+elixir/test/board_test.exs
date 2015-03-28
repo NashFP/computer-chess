@@ -316,7 +316,7 @@ defmodule BoardTest do
 
   test "should initially evaluate to 0" do
     board = Board.new
-    value = Board.evaluate(board, :white, 0)
+    value = Board.evaluate(board, :white)
     assert value == value
   end
   

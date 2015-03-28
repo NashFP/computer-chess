@@ -1,7 +1,7 @@
 defmodule Board do
   def alpha_beta(board, color, depth), do: alpha_beta(board, color, -999999, 999999, depth)
 
-  defp alpha_beta(board, color, _, _, 0), do: evaluate(board, color, 0)
+  defp alpha_beta(board, color, _, _, 0), do: evaluate(board, color)
 
   defp alpha_beta(board, color, alpha, beta, depth_left) do
     moves = get_safe_moves_for_color(color, board)
@@ -75,7 +75,7 @@ defmodule Board do
     |> Enum.sum
   end
 
-  def evaluate(board, color, 0) do
+  def evaluate(board, color) do
     lead_by_pieces = [
       {:K, 200},
       {:Q, 9},
