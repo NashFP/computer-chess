@@ -458,23 +458,28 @@ defmodule Board do
     moves = get_safe_moves_for_color(color, board)
     {alpha, beta} = {-999999, 999999}
 
-    {_, _, final_best_move} =
-      List.foldl(moves, {alpha, false, {:error, :checkmate}},
-        fn(m, {cur_alpha, cutting_off, cur_best_move}) ->
+    {_, _, final_scored_moves} =
+      List.foldl(moves, {alpha, false, []},
+        fn(m, {cur_alpha, cutting_off, scored_moves}) ->
           case cutting_off do
-            true  -> {cur_alpha, true, cur_best_move}
+            true  -> {cur_alpha, true, [{m, -999999}|scored_moves]}
             false ->
               new_board = move(board, m)
               score = -alpha_beta(new_board, other_color(color), -beta, -cur_alpha, depth - 1)
+              new_scored_moves = [{m, score}|scored_moves]
               cond do
-                score >= beta     -> {cur_alpha, true, cur_best_move}
-                score > cur_alpha -> {score, false, m}
-                true              -> {cur_alpha, false, cur_best_move}
+                score >= beta     -> {cur_alpha, true, new_scored_moves}
+                score > cur_alpha -> {score, false, new_scored_moves}
+                true              -> {cur_alpha, false, new_scored_moves}
               end
           end
         end)
 
-    final_best_move
+    {best_move, _} = final_scored_moves
+    |> Enum.sort_by(fn({_, score}) -> score end)
+    |> List.last
+
+    best_move
   end
 
   defp starting_pawn_rank(:black), do: 7
