@@ -14,10 +14,22 @@ defmodule Game do
   defp error_message(:self_check), do: "That would leave you in check."
   defp error_message(_), do: "Unknown error."
 
+  defp get_best_move(color, board) do
+    pid = spawn(Game, :get_best_move_process, [color, board, self])
+    receive do
+      {:ok, move} -> move
+    end
+  end
+
+  def get_best_move_process(color, board, pid) do
+    move = Board.get_best_move_for_color(color, board)
+    send(pid, {:ok, move})
+  end
+
   defp get_move(board, color, auto_sides) do
     case is_computer?(color, auto_sides) do
       true ->
-        move = Board.get_best_move_for_color(color, board)
+        move = get_best_move(color, board)
         apply_move(board, color, move, auto_sides)
       false ->
         prompt_for_move(board, color, auto_sides)
