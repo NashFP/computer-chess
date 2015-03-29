@@ -456,6 +456,10 @@ defmodule Board do
 
   defp search_root(board, color, depth) do
     moves = get_safe_moves_for_color(color, board)
+    search_root(board, color, depth, moves)
+  end
+
+  defp search_root(board, color, depth, moves) do
     {alpha, beta} = {-999999, 999999}
 
     {_, _, final_scored_moves} =
