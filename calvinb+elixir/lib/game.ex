@@ -15,7 +15,7 @@ defmodule Game do
   defp error_message(_), do: "Unknown error."
 
   defp get_best_move(color, board) do
-    pid = spawn(Game, :get_best_move_process, [color, board, self])
+    spawn(Game, :get_best_move_process, [color, board, self])
     receive do
       {:ok, move} -> move
     end
