@@ -1,6 +1,7 @@
 /_build
 /deps
 erl_crash.dump
+*.debug
 *.ez
 *.swp
 /chess
