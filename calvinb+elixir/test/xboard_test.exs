@@ -10,7 +10,7 @@ defmodule XBoardTest do
   test "should send feature upon receiving protover command" do
     state = %XBoard{}
     response = XBoard.handle(state, "protover 2")
-    assert response === {state, "feature done=1"}
+    assert response === {state, "feature usermove=1 done=1"}
   end
 
   test "should handle new command" do
@@ -28,7 +28,7 @@ defmodule XBoardTest do
 
   test "should handle legal move" do
     state = %XBoard{board: Board.parse("WPe2")}
-    |> XBoard.handle("MOVE e2e4")
+    |> XBoard.handle("usermove e2e4")
     assert state.board == Board.parse("WPe4+")
   end
 end

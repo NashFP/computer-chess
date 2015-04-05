@@ -1,7 +1,7 @@
 defmodule XBoard do
   defstruct [board: []]
 
-  def handle(state = %XBoard{board: board}, "MOVE " <> move_string) do
+  def handle(state = %XBoard{board: board}, "usermove " <> move_string) do
     {:ok, move} = Move.parse(move_string)
 
     case Board.review_move(:white, move, board) do
@@ -19,7 +19,7 @@ defmodule XBoard do
   end
 
   def handle(state, "protover " <> _version) do
-    {state, "feature done=1"}
+    {state, "feature usermove=1 done=1"}
   end
 
   def handle(state, "quit") do
