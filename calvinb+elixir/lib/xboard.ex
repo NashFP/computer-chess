@@ -32,11 +32,26 @@ defmodule XBoard do
   end
 
   def handle(state, "quit") do
-    # TODO: Terminate process
-    %{state | board: []}
+    :quit
   end
 
   def handle(state, _command) do
     state
+  end
+
+  defp loop(state) do
+    command = IO.gets("") |> String.strip
+    case handle(state, command) do
+      :quit -> :ok
+      {new_state, output} ->
+        IO.puts output
+        loop(new_state)
+      new_state ->
+        loop(new_state)
+    end
+  end
+
+  def start do
+    loop(%XBoard{})
   end
 end
