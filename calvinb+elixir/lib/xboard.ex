@@ -18,6 +18,10 @@ defmodule XBoard do
     %{state | board: Board.new}
   end
 
+  def handle(state, "protover " <> _version) do
+    {state, "feature"}
+  end
+
   def handle(state, "quit") do
     # TODO: Terminate process
     %{state | board: []}
