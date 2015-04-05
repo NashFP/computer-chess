@@ -23,7 +23,7 @@ defmodule XBoardTest do
     state = %XBoard{}
     |> XBoard.handle("new")
     |> XBoard.handle("quit")
-    assert state.board === []
+    assert state === :quit
   end
 
   test "should handle legal move" do
