@@ -44,10 +44,10 @@ defmodule XBoardTest do
     assert response === {state, "Illegal move (invalid_format): crap"}
   end
 
-  test "should report move" do
+  test "should get move message" do
     move_string = "e2e4"
     {:ok, move} = Move.parse(move_string)
-    message = XBoard.report_move(move)
+    message = XBoard.get_move_message(move)
     assert message === "move " <> move_string
   end
 end

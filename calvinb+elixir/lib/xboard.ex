@@ -1,6 +1,10 @@
 defmodule XBoard do
   defstruct [board: []]
 
+  def get_move_message(move) do
+    "move " <> Move.to_string(move)
+  end
+
   def handle(state = %XBoard{board: board}, "usermove " <> move_string) do
     case Move.parse(move_string) do
       {:ok, move} ->
@@ -31,9 +35,5 @@ defmodule XBoard do
 
   def handle(state, _command) do
     state
-  end
-
-  def report_move(move) do
-    "move " <> Move.to_string(move)
   end
 end
