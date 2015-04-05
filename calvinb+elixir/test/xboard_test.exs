@@ -26,11 +26,11 @@ defmodule XBoardTest do
     assert state === :quit
   end
 
-  test "should handle legal move" do
-    state = %XBoard{board: Board.parse("WPe2")}
-    |> XBoard.handle("usermove e2e4")
-    assert state.board == Board.parse("WPe4+")
-  end
+  # test "should handle legal move" do
+  #   state = %XBoard{board: Board.parse("WPe2")}
+  #   |> XBoard.handle("usermove e2e4")
+  #   assert state.board == Board.parse("WPe4+")
+  # end
 
   test "should handle illegal move" do
     state = %XBoard{board: Board.parse("WPe2")}

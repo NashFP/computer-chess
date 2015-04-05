@@ -26,7 +26,11 @@ defmodule XBoard do
         case Board.review_move(:white, move, board) do
           :ok ->
             new_board = Board.move(board, move)
-            %{state | board: new_board}
+            # TODO: Don't block here
+            my_move = Board.get_best_move_for_color(:black, new_board)
+            newer_board = Board.move(new_board, my_move)
+            IO.puts get_move_message(my_move)
+            %{state | board: newer_board}
           {:error, error} ->
             {state, "Illegal move (" <> to_string(error) <> "): " <> move_string}
         end
