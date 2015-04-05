@@ -8,6 +8,18 @@ defmodule XBoard do
     "move " <> Move.to_string(move)
   end
 
+  def handle(state, "new") do
+    %{state | board: Board.new}
+  end
+
+  def handle(state, "protover " <> _version) do
+    {state, "feature usermove=1 done=1"}
+  end
+
+  def handle(state, "quit") do
+    :quit
+  end
+
   def handle(state = %XBoard{board: board}, "usermove " <> move_string) do
     case Move.parse(move_string) do
       {:ok, move} ->
@@ -21,18 +33,6 @@ defmodule XBoard do
       {:error, error} ->
         {state, "Illegal move (" <> to_string(error) <> "): " <> move_string}
     end
-  end
-
-  def handle(state, "new") do
-    %{state | board: Board.new}
-  end
-
-  def handle(state, "protover " <> _version) do
-    {state, "feature usermove=1 done=1"}
-  end
-
-  def handle(state, "quit") do
-    :quit
   end
 
   def handle(state, _command) do
