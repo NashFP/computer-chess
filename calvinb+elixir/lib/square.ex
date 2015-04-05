@@ -37,4 +37,8 @@ defmodule Square do
       rank: string |> String.slice(1, 1) |> String.to_integer
     }
   end
+
+  def to_string(%Square{file: file, rank: rank}) do
+    "#{file}#{rank}"
+  end
 end

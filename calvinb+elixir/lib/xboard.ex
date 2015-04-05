@@ -32,4 +32,8 @@ defmodule XBoard do
   def handle(state, _command) do
     state
   end
+
+  def report_move(move) do
+    "move " <> Move.to_string(move)
+  end
 end
