@@ -10,7 +10,7 @@ defmodule XBoardTest do
   test "should send feature upon receiving protover command" do
     state = %XBoard{}
     response = XBoard.handle(state, "protover 2")
-    assert response === {state, "feature"}
+    assert response === {state, "feature done=1"}
   end
 
   test "should handle new command" do

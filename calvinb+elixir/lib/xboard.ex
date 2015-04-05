@@ -19,7 +19,7 @@ defmodule XBoard do
   end
 
   def handle(state, "protover " <> _version) do
-    {state, "feature"}
+    {state, "feature done=1"}
   end
 
   def handle(state, "quit") do
