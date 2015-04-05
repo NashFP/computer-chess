@@ -18,4 +18,11 @@ defmodule XBoardTest do
     new_state = XBoard.handle(state, "new")
     assert new_state.board === Board.new
   end
+
+  test "should handle quit" do
+    state = %XBoard{}
+    |> XBoard.handle("new")
+    |> XBoard.handle("quit")
+    assert state.board === []
+  end
 end
