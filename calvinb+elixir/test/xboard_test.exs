@@ -31,4 +31,16 @@ defmodule XBoardTest do
     |> XBoard.handle("usermove e2e4")
     assert state.board == Board.parse("WPe4+")
   end
+
+  test "should handle illegal move" do
+    state = %XBoard{board: Board.parse("WPe2")}
+    response = state |> XBoard.handle("usermove e2e5")
+    assert response === {state, "Illegal move (illegal): e2e5"}
+  end
+
+  test "should handle move parse failure" do
+    state = %XBoard{board: Board.parse("WPe2")}
+    response = state |> XBoard.handle("usermove crap")
+    assert response === {state, "Illegal move (invalid_format): crap"}
+  end
 end

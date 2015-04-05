@@ -2,15 +2,17 @@ defmodule XBoard do
   defstruct [board: []]
 
   def handle(state = %XBoard{board: board}, "usermove " <> move_string) do
-    {:ok, move} = Move.parse(move_string)
-
-    case Board.review_move(:white, move, board) do
-      :ok ->
-        new_board = Board.move(board, move)
-        %{state | board: new_board}
-      # {:error, error} ->
-      #   IO.puts error_message(error)
-      #   prompt_for_move(board, color, auto_sides)
+    case Move.parse(move_string) do
+      {:ok, move} ->
+        case Board.review_move(:white, move, board) do
+          :ok ->
+            new_board = Board.move(board, move)
+            %{state | board: new_board}
+          {:error, error} ->
+            {state, "Illegal move (" <> to_string(error) <> "): " <> move_string}
+        end
+      {:error, error} ->
+        {state, "Illegal move (" <> to_string(error) <> "): " <> move_string}
     end
   end
 
