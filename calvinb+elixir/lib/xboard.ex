@@ -1,6 +1,9 @@
 defmodule XBoard do
   defstruct [board: []]
 
+  def get_game_end_message(:black), do: "RESULT 0-1"
+  def get_game_end_message(:white), do: "RESULT 1-0"
+
   def get_move_message(move) do
     "move " <> Move.to_string(move)
   end

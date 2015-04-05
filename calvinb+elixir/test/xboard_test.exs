@@ -50,4 +50,14 @@ defmodule XBoardTest do
     message = XBoard.get_move_message(move)
     assert message === "move " <> move_string
   end
+
+  test "should get game end message when white wins" do
+    message = XBoard.get_game_end_message(:white)
+    assert message === "RESULT 1-0"
+  end
+
+  test "should get game end message when black wins" do
+    message = XBoard.get_game_end_message(:black)
+    assert message === "RESULT 0-1"
+  end
 end
