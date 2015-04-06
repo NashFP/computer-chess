@@ -44,7 +44,7 @@ scoreGame g = case moves g of
 
 --- How to play a game when you are in a hurry --------------------------------
 
-bestMoveWithDepthLimit estimator moveLimit g =
+bestMoveWithDepthLimitOriginal estimator moveLimit g =
   let halfMoveLimit = moveLimit * 2 - 1
   in best (scoreMoveWithDepthLimit estimator halfMoveLimit g) (moves g)
 
@@ -59,3 +59,33 @@ scoreGameWithDepthLimit estimator limit g = case moves g of
              -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
              -- the AI drag out losing games, but it's the winner's responsibility to end it.)
              -0.999 * maximum (map (scoreMoveWithDepthLimit estimator (limit - 1) g) ms)
+
+
+--- Or equivalently -----------------------------------------------------------
+
+bestMoveWithDepthLimit' estimator moveLimit g =
+  best (scoreMyMove (moveLimit - 1) g) (moves g)
+  where
+    scoreMyMove limit g0 m =
+      let g = applyMove g0 m
+      in case moves g of
+        [] -> scoreFinishedGame g
+        replyList -> 0.999 * minimum (map (scoreYourReply limit g) replyList)
+    scoreYourReply limit g0 m =
+      let g = applyMove g0 m
+      in case moves g of
+           [] -> -scoreFinishedGame g
+           -- This 0.999 makes near-term game-winning moves more attractive than distant ones,
+           -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
+           -- the AI drag out losing games, but it's the winner's responsibility to end it.)
+           moveList ->
+             if limit == 0
+             then -estimator g
+             else 0.999 * maximum (map (scoreMyMove (limit - 1) g) moveList)
+
+bestMoveWithDepthLimit estimator moveLimit g =
+  let a = bestMoveWithDepthLimitOriginal estimator moveLimit g
+      b = bestMoveWithDepthLimit' estimator moveLimit g
+  in if a == b
+     then a
+     else error ("bug: original algorithm moved " ++ show a ++ "; new algorithm moved " ++ show b)
