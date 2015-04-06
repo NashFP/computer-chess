@@ -76,16 +76,16 @@ bestMoveWithDepthLimit' estimator moveLimit g =
   where
     compare :: Int -> Move g -> (Move g, Float) -> (Move g, Float)
     compare limit m best@(_, bestScore) =
-      let mScore = scoreMyMove limit g m
+      let mScore = scoreMyMove limit g bestScore m
       in if mScore > bestScore
          then (m, mScore)
          else best
 
-    scoreMyMove :: Int -> g -> Move g -> Float
-    scoreMyMove limit g0 m =
+    scoreMyMove :: Int -> g -> Float -> Move g -> Float
+    scoreMyMove limit g0 previousBest m =
       let g = applyMove g0 m
       in case moves g of
-        [] -> scoreFinishedGame g
+        [] -> max previousBest $ scoreFinishedGame g
         replyList -> 0.999 * minimum (map (scoreYourReply limit g) replyList)
 
     scoreYourReply :: Int -> g -> Move g -> Float
