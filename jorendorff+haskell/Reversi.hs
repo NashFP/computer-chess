@@ -157,7 +157,7 @@ heuristic (Reversi arr you) =
      else if yours + mine < 45 then positional arr you -- midgame: play positionally
      else 0.01 * delta                                 -- endgame: maximize
 
-reversiSmartyPantsAI = bestMoveWithDepthLimit heuristic 4
+reversiSmartyPantsAI = bestMoveWithDepthLimit heuristic 3
 
 main = playHumanVsComputer reversiSmartyPantsAI start
 

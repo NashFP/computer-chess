@@ -106,4 +106,4 @@ pawnAdvantageForWhite g =
         + (popCount $ allPieces .&. shiftR (bPawns .&. 0xfefefefefefefe00) 9)  -- SW
   in whitePawnBonus - blackPawnBonus
 
-chessAI = bestMoveWithDepthLimit heuristic 3
+chessAI = bestMoveWithDepthLimit heuristic 2

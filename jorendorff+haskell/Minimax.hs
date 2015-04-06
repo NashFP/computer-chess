@@ -44,8 +44,9 @@ scoreGame g = case moves g of
 
 --- How to play a game when you are in a hurry --------------------------------
 
-bestMoveWithDepthLimit estimator limit g =
-  best (scoreMoveWithDepthLimit estimator limit g) (moves g)
+bestMoveWithDepthLimit estimator moveLimit g =
+  let halfMoveLimit = moveLimit * 2 - 1
+  in best (scoreMoveWithDepthLimit estimator halfMoveLimit g) (moves g)
 
 scoreMoveWithDepthLimit estimator limit g m =
   scoreGameWithDepthLimit estimator limit (applyMove g m)
