@@ -1,9 +1,9 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, ScopedTypeVariables #-}
 
 module Minimax(Game, Move, start, moves, applyMove, scoreFinishedGame, bestMove,
                bestMoveWithDepthLimit) where
 
-import Data.List(maximumBy)
+import Data.List(maximumBy, foldl')
 
 -- Hi! If this import doesn't work for you, you just need to `cabal install parallel`. :)
 import Control.Parallel.Strategies(parMap, parTuple2, r0, rseq)
@@ -63,6 +63,10 @@ scoreGameWithDepthLimit estimator limit g = case moves g of
 
 --- Or equivalently -----------------------------------------------------------
 
+infinity = 1/0
+negativeInfinity = -infinity
+
+bestMoveWithDepthLimit' :: forall g . Game g => (g -> Float) -> Int -> (g -> Move g)
 bestMoveWithDepthLimit' estimator moveLimit g =
   best (scoreMyMove (moveLimit - 1) g) (moves g)
   where
@@ -79,9 +83,31 @@ bestMoveWithDepthLimit' estimator moveLimit g =
            -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
            -- the AI drag out losing games, but it's the winner's responsibility to end it.)
            moveList ->
-             if limit == 0
-             then -estimator g
-             else 0.999 * maximum (map (scoreMyMove (limit - 1) g) moveList)
+             case limit of
+               0 -> -estimator g
+               1 -> 0.999 * myMaxScore limit g moveList
+               _ -> 0.999 * maximum (map (scoreMyMove (limit - 1) g) moveList)
+    myMaxScore limit g moveList =
+      foldl' (considerMyMove (limit - 1) g) negativeInfinity moveList
+    considerMyMove limit g0 previousBest m =
+      let g = applyMove g0 m
+      in case moves g of
+        [] -> max previousBest $ scoreFinishedGame g
+        replyList -> myScoreWithYourBestReply limit g previousBest replyList
+    myScoreWithYourBestReply limit g previousBest replyList =
+      foldr (considerYourReply limit g previousBest) infinity replyList
+    considerYourReply limit g0 previousBest m currentWorst =
+      let
+        g = applyMove g0 m
+        result = 0.999 * case moves g of
+          [] -> -scoreFinishedGame g
+          moveList ->
+            if limit <= 0
+            then -estimator g
+            else 0.999 * myMaxScore limit g moveList
+      in if result < previousBest
+         then previousBest  -- cut! ignore currentWorst; whole tail of foldr isn't computed
+         else min currentWorst result
 
 bestMoveWithDepthLimit estimator moveLimit g =
   let a = bestMoveWithDepthLimitOriginal estimator moveLimit g
