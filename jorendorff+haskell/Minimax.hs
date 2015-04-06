@@ -83,10 +83,9 @@ bestMoveWithDepthLimit' estimator moveLimit g =
            -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
            -- the AI drag out losing games, but it's the winner's responsibility to end it.)
            moveList ->
-             case limit of
-               0 -> -estimator g
-               1 -> 0.999 * myMaxScore limit g moveList
-               _ -> 0.999 * maximum (map (scoreMyMove (limit - 1) g) moveList)
+             if limit <= 0
+             then -estimator g
+             else 0.999 * myMaxScore limit g moveList
     myMaxScore limit g moveList =
       foldl' (considerMyMove (limit - 1) g) negativeInfinity moveList
     considerMyMove limit g0 previousBest m =
