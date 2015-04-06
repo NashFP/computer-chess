@@ -75,6 +75,7 @@ bestMoveWithDepthLimit' estimator moveLimit g =
       in case moves g of
         [] -> scoreFinishedGame g
         replyList -> 0.999 * minimum (map (scoreYourReply limit g) replyList)
+
     scoreYourReply limit g0 m =
       let g = applyMove g0 m
       in case moves g of
@@ -86,15 +87,19 @@ bestMoveWithDepthLimit' estimator moveLimit g =
              if limit <= 0
              then -estimator g
              else 0.999 * myMaxScore limit g moveList
+
     myMaxScore limit g moveList =
       foldl' (considerMyMove (limit - 1) g) negativeInfinity moveList
+
     considerMyMove limit g0 previousBest m =
       let g = applyMove g0 m
       in case moves g of
         [] -> max previousBest $ scoreFinishedGame g
         replyList -> myScoreWithYourBestReply limit g previousBest replyList
+
     myScoreWithYourBestReply limit g previousBest replyList =
       foldr (considerYourReply limit g previousBest) infinity replyList
+
     considerYourReply limit g0 previousBest m currentWorst =
       let
         g = applyMove g0 m
