@@ -76,30 +76,10 @@ bestMoveWithDepthLimit' estimator moveLimit g =
   where
     compare :: Int -> Move g -> (Move g, Float) -> (Move g, Float)
     compare limit m best@(_, bestScore) =
-      let mScore = scoreMyMove limit g bestScore m
+      let mScore = considerMyMove limit g bestScore m
       in if mScore > bestScore
          then (m, mScore)
          else best
-
-    scoreMyMove :: Int -> g -> Float -> Move g -> Float
-    scoreMyMove limit g0 previousBest m =
-      let g = applyMove g0 m
-      in case moves g of
-        [] -> max previousBest $ scoreFinishedGame g
-        replyList -> 0.999 * minimum (map (scoreYourReply limit g) replyList)
-
-    scoreYourReply :: Int -> g -> Move g -> Float
-    scoreYourReply limit g0 m =
-      let g = applyMove g0 m
-      in case moves g of
-           [] -> -scoreFinishedGame g
-           -- This 0.999 makes near-term game-winning moves more attractive than distant ones,
-           -- so the AI doesn't drag a game out unnecessarily. (By the same token, this makes
-           -- the AI drag out losing games, but it's the winner's responsibility to end it.)
-           moveList ->
-             if limit <= 0
-             then -estimator g
-             else 0.999 * myMaxScore limit g moveList
 
     myMaxScore :: Int -> g -> [Move g] -> Float
     myMaxScore limit g moveList =
