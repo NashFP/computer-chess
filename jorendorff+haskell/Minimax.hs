@@ -1,7 +1,9 @@
 {-# LANGUAGE TypeFamilies, ScopedTypeVariables #-}
 
 module Minimax(Game, Move, start, moves, applyMove, scoreFinishedGame, bestMove,
-               bestMoveWithDepthLimit) where
+               bestMoveWithDepthLimit,
+               bestMoveWithDepthLimitOriginal,
+               bestMoveWithDepthLimit') where
 
 import Data.List(maximumBy, foldl')
 

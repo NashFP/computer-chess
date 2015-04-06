@@ -5,10 +5,12 @@ import Data.Array
 import Vs
 import Data.List(intersperse, intercalate, elemIndex)
 import Data.Char(toLower)
+import Test.QuickCheck
+import System.Environment(getArgs)
 
 --- Reversi
 
-data Square = White | Black | Empty
+data Square = Empty | Black | White
   deriving Eq
 
 flipSquare White = Black
@@ -25,6 +27,20 @@ data Reversi = Reversi (Array Int Square) Square
 letters = "abcdefgh"
 size = length letters  -- must be even, or the starting board is weird and the game can't be played
 sizeSq = size * size
+
+instance Arbitrary Square where
+  arbitrary = do
+    n <- arbitrarySizedIntegral
+    return $ case (n `mod` 3) of
+      0 -> Empty
+      1 -> Black
+      2 -> White
+
+instance Arbitrary Reversi where
+  arbitrary = do
+    lst <- vector sizeSq
+    blackToPlay <- arbitrary
+    return $ Reversi (listArray (0, sizeSq - 1) lst) (if blackToPlay then Black else White)
 
 data ReversiMove = Pass | MoveAt (Int, Int)
   deriving Eq
@@ -159,5 +175,17 @@ heuristic (Reversi arr you) =
 
 reversiSmartyPantsAI = bestMoveWithDepthLimit heuristic 3
 
-main = playHumanVsComputer reversiSmartyPantsAI start
+optimizedMinimaxBehavesJustLikeReferenceImplementation :: Reversi -> Bool
+optimizedMinimaxBehavesJustLikeReferenceImplementation g =
+  case moves g of
+    [] -> True
+    _ -> bestMoveWithDepthLimitOriginal heuristic 3 g ==
+         bestMoveWithDepthLimit'        heuristic 3 g
+
+main = do
+  args <- getArgs
+  case args of
+    ["--check"] -> quickCheck optimizedMinimaxBehavesJustLikeReferenceImplementation
+    [] -> playHumanVsComputer reversiSmartyPantsAI start
+    _ -> putStrLn "usage: ./Reversi [--check]"
 
