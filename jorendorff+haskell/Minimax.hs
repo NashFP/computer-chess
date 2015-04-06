@@ -70,7 +70,10 @@ negativeInfinity = -infinity
 
 bestMoveWithDepthLimit' :: forall g . Game g => (g -> Float) -> Int -> (g -> Move g)
 bestMoveWithDepthLimit' estimator moveLimit g =
-  best (scoreMyMove (moveLimit - 1) g) (moves g)
+  fst
+  $ maximumBy (\(a, as) (b, bs) -> compare as bs)
+  $ map (\move -> (move, scoreMyMove (moveLimit - 1) g move))
+  $ moves g
   where
     scoreMyMove :: Int -> g -> Move g -> Float
     scoreMyMove limit g0 m =
