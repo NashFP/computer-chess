@@ -916,43 +916,47 @@ impl Game for Chessboard {
 
     // The first heuristic I attempted was this amazingly bad one:
     fn heuristic0(_: &Chessboard) -> f64 { 0.0 }
+
+    // Then I tried this almost-as-bad heuristic: just count pieces :)
+    fn heuristic1(board: &Chessboard) -> f64 {
+        let diff = 0.05 * (board.white.all().count_ones() as f64 -
+                           board.black.all().count_ones() as f64);
+        match board.whose_turn {
+            White => diff,
+            Black => -diff
+        }
+    }
 */
 
-// Then I tried this almost-as-bad heuristic: just count pieces :)
-fn heuristic1(board: &Chessboard) -> f64 {
-    let diff = 0.05 * (board.white.all().count_ones() as f64 -
-                       board.black.all().count_ones() as f64);
+// Next I gave all the pieces values.
+fn heuristic2(board: &Chessboard) -> f64 {
+    let diff = 0.00001 * material_advantage_for_white(board);
     match board.whose_turn {
         White => diff,
         Black => -diff
     }
 }
 
-// Next I gave all the pieces vaules.
+fn material_advantage_for_white(board: &Chessboard) -> f64 {
+    fn total(side: &Side) -> f64{
+        // The scores here are from Wikipedia, which lists a dozen or more
+        // scoring systems to choose from. This one is credited to Hans Berliner.
+        //
+        // This code is complicated slightly by our trick of representing a queen
+        // as a bishop and a rook. For speed, we do not bother eliminating queens
+        // when counting the number of bishops/rooks, but rather count queens as
+        // both bishops and rooks, and then add a bit *more*...
+        (100 * side.pawns.count_ones() +
+         320 * side.knights.count_ones() +
+         333 * side.bishops.count_ones() +
+         510 * side.rooks.count_ones() +
+          37 * (side.bishops & side.rooks).count_ones()) as f64
+    }
+
+    return total(&board.white) - total(&board.black);
+}
 
 /*
-
-heuristic2 g = 
-  let diff = 0.00001 * fromIntegral (materialAdvantageForWhite g)
-  in case whoseTurn g of
-       White -> -diff
-       Black -> diff
-
-materialAdvantageForWhite g =
-  let
-    -- The scores here are from Wikipedia, which lists a dozen or more
-    -- scoring systems to choose from. This one is credited to Hans Berliner.
-    --
-    -- This code is complicated slightly by our trick of representing a queen
-    -- as a bishop and a rook. For speed, we do not bother eliminating queens
-    -- when counting the number of bishops/rooks, but rather count queens as
-    -- both bishops and rooks, and then add a bit *more*...
-    total side =   100 * popCount (pawns side)
-                 + 320 * popCount (knights side)
-                 + 333 * popCount (bishops side)
-                 + 510 * popCount (rooks side)
-                 +  37 * popCount (bishops side .&. rooks side)
-  in total (white g) - total (black g)
 
 -- Now, for each piece, give its side a small bonus for the number of squares it
 -- attacks, and for each friendly piece it protects.
@@ -1047,5 +1051,5 @@ chessAI = bestMoveWithPresortAndDepthLimit presortMoves heuristic 2
 */
 
 pub fn ai(board: &Chessboard) -> ChessMove {
-    best_move_with_depth_limit(&heuristic1, 2, board)
+    best_move_with_depth_limit(&heuristic2, 2, board)
 }
