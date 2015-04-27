@@ -932,8 +932,19 @@ impl Game for Chessboard {
     fn heuristic2(board: &Chessboard) -> f64 {
         let diff = 0.00001 * material_advantage_for_white(board) as f64;
         match board.whose_turn {
-            White => diff,
-            Black => -diff
+            White => -diff,
+            Black => diff
+        }
+    }
+
+    // Next, for each piece, give its side a small bonus for the number of squares it
+    // attacks, and for each friendly piece it protects.
+    fn heuristic3(board: &Chessboard) -> f64 {
+        let diff = 0.00000001 * (1000 * material_advantage_for_white(board) +
+                                 mobility_advantage_for_white(board)) as f64;
+        match board.whose_turn {
+            White => -diff,
+            Black => diff
         }
     }
 */
@@ -957,7 +968,7 @@ fn material_advantage_for_white(board: &Chessboard) -> i32 {
     return total(&board.white) - total(&board.black);
 }
 
-fn sum<I: Iterator<Item=u32>>(mut i: I) -> u32 {
+fn sum<I: Iterator<Item=u32>>(i: I) -> u32 {
     let mut total = 0;
     for v in i {
         total += v;
@@ -1010,11 +1021,24 @@ fn mobility_advantage_for_white(board: &Chessboard) -> i32 {
     mobility(&board.white) - mobility(&board.black)
 }
 
-// Next, for each piece, give its side a small bonus for the number of squares it
-// attacks, and for each friendly piece it protects.
-fn heuristic3(board: &Chessboard) -> f64 {
+fn pawn_advantage_for_white(board: &Chessboard) -> i32 {
+    let w_pawns = board.white.pawns;
+    let b_pawns = board.black.pawns;
+    let all_pieces = board.white.all() | board.black.all();
+    let white_pawn_bonus =
+        (all_pieces & ((w_pawns & 0x00fefefe_fefefefe) << 7)).count_ones() +    // NW
+        (all_pieces & ((w_pawns & 0x007f7f7f_7f7f7f7f) << 9)).count_ones();     // NE
+    let black_pawn_bonus =
+        (all_pieces & ((b_pawns & 0x7f7f7f7f_7f7f7f00) >> 7)).count_ones() +    // SE
+        (all_pieces & ((b_pawns & 0xfefefefe_fefefe00) >> 9)).count_ones();     // SW
+    white_pawn_bonus as i32 - black_pawn_bonus as i32
+}
+
+// Now, add some points for pawns attacking and defending other pieces.
+fn heuristic(board: &Chessboard) -> f64 {
     let diff = 0.00000001 * (1000 * material_advantage_for_white(board) +
-                             mobility_advantage_for_white(board)) as f64;
+                                3 * mobility_advantage_for_white(board) +
+                                2 * pawn_advantage_for_white(board)) as f64;
     match board.whose_turn {
         White => -diff,
         Black => diff
@@ -1022,33 +1046,6 @@ fn heuristic3(board: &Chessboard) -> f64 {
 }
 
 /*
-
--- Now, add some points for pawns attacking and defending other pieces.
-heuristic g =
-  let
-    diff = 0.00000001 * fromIntegral (1000 * materialAdvantageForWhite g
-                                      + 3 * mobilityAdvantageForWhite g
-                                      + 2 * pawnAdvantageForWhite g)
-  in case whoseTurn g of
-       White -> -diff
-       Black -> diff
-
-pawnAdvantageForWhite g =
-  let w = white g
-      wAll = wholeSuite w
-      wPawns = pawns w
-      b = black g
-      bAll = wholeSuite b
-      bPawns = pawns b
-      allPieces = wAll .|. bAll    -- cf. Seuss 1963 "Hop On Pop"
-      whitePawnBonus =
-          (popCount $ allPieces .&. shiftL (wPawns .&. 0x00fefefefefefefe) 7)  -- NW
-        + (popCount $ allPieces .&. shiftL (wPawns .&. 0x007f7f7f7f7f7f7f) 9)  -- NE
-      blackPawnBonus =
-          (popCount $ allPieces .&. shiftR (bPawns .&. 0x7f7f7f7f7f7f7f00) 7)  -- SE
-        + (popCount $ allPieces .&. shiftR (bPawns .&. 0xfefefefefefefe00) 9)  -- SW
-  in whitePawnBonus - blackPawnBonus
-
 presortMoves g moves = sortBy (compare `on` captureStrength) moves
   where
     enemySide = (case whoseTurn g of {Black -> black; White -> white}) g
@@ -1069,5 +1066,5 @@ chessAI = bestMoveWithPresortAndDepthLimit presortMoves heuristic 2
 */
 
 pub fn ai(board: &Chessboard) -> ChessMove {
-    best_move_with_depth_limit(&heuristic3, 2, board)
+    best_move_with_depth_limit(&heuristic, 2, board)
 }
