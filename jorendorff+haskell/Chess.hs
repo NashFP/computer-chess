@@ -105,7 +105,7 @@ blackCastles = (
   -- black castling queen's side
   (ChessMove 0x1000000000000000 0x0400000000000000 Nothing, 0x0e00000000000000, 0x0800000000000000))
 
--- Computes (64 - countLeadingZeros x), assuming x only has a single bit
+-- Computes (63 - countLeadingZeros x), assuming x only has a single bit
 -- set. Unfortunately countLeadingZeros isn't in Data.Bits in the current
 -- stable GHC as of this writing.
 log2OfBit x = countBit x 0xffffffff00000000 32 .|.
