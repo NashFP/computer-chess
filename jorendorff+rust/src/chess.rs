@@ -13,7 +13,7 @@ use minimax::best_move_with_depth_limit;
 // *** Game state structs *****************************************************
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-enum ChessColor { White, Black }
+pub enum ChessColor { White, Black }
 
 use chess::ChessColor::*;
 
@@ -30,9 +30,9 @@ pub struct Side {
 
 #[derive(Clone, Copy)]
 pub struct Chessboard {
-    black: Side,
     white: Side,
-    whose_turn: ChessColor,
+    black: Side,
+    pub whose_turn: ChessColor,
 
     // en_passant is usually 0, but immediately after a pawn advances 2 spaces
     // from its initial position, en_passant is set to the position the pawn
@@ -125,6 +125,100 @@ impl Debug for Chessboard {
                 s
             })) + "\n    a b c d e f g h\n"))
     }
+}
+
+
+// *** Reading chessboards ****************************************************
+
+fn file_to_int(file: char) -> i32 {
+    file as i32 - 'a' as i32
+}
+
+pub fn fen_to_board(fen: &str) -> Chessboard {
+    let mut words = fen.split(' ');
+    let pieces_str = words.next().expect("fen_to_board: empty string");
+    let whose_turn_str = words.next().expect("fen_to_board: missing whose-turn field");
+    let castling_str = words.next().expect("fen_to_board: missing castling field");
+    let en_passant_str = words.next().expect("fen_to_board: missing en-passant field");
+
+    let whose_turn = if whose_turn_str == "w" { White }
+                     else if whose_turn_str == "b" { Black }
+                     else { panic!("unrecognized whose-turn string in fen: {}", whose_turn_str); };
+
+    let en_passant =
+        if en_passant_str == "-" {
+            0
+        } else if en_passant_str.len() != 1 {
+            panic!("bad en-passant string in fen: {}", en_passant_str);
+        } else {
+            let pawn_row = match whose_turn {
+                White => 0x00000100_00000000,
+                Black => 0x00000000_00010000
+            };
+            pawn_row << file_to_int(en_passant_str.chars().next().expect("stupid"))
+        };
+
+    let mut result = Chessboard {
+        white: Side {
+            pawns:   0,
+            knights: 0,
+            bishops: 0,
+            rooks:   0,
+            king:    0,
+            castle_k: castling_str.contains('K'),
+            castle_q: castling_str.contains('Q')
+        },
+        black: Side {
+            pawns:   0,
+            knights: 0,
+            bishops: 0,
+            rooks:   0,
+            king:    0,
+            castle_k: castling_str.contains('k'),
+            castle_q: castling_str.contains('q')
+        },
+        whose_turn: whose_turn,
+        en_passant: en_passant
+    };
+
+    let mut i: u32 = 0;
+
+    fn i_to_bit(i: u32) -> u64 {
+        let file_mask = 7;     // the three least significant bits
+        let rank_mask = 0x38;  // next three bits
+        let file = i & file_mask;
+        let reversed_rank_bits = 0x40 - (i & rank_mask);
+        1u64 << (file | reversed_rank_bits)
+    }
+
+    for ch in pieces_str.chars() {
+        let bit = i_to_bit(i);
+        match ch {
+            'P' => { result.white.pawns   |= bit; }
+            'N' => { result.white.knights |= bit; }
+            'B' => { result.white.bishops |= bit; }
+            'R' => { result.white.rooks   |= bit; }
+            'Q' => { result.white.bishops |= bit;
+                     result.white.rooks   |= bit; }
+            'K' => { result.white.king    |= bit; }
+            'p' => { result.black.pawns   |= bit; }
+            'n' => { result.black.knights |= bit; }
+            'b' => { result.black.bishops |= bit; }
+            'r' => { result.black.rooks   |= bit; }
+            'q' => { result.black.bishops |= bit;
+                     result.black.rooks   |= bit; }
+            'k' => { result.black.king    |= bit; }
+            '/' => { assert_eq!(i & 7, 0); }
+            '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' => {
+                i += ch as u32 - '0' as u32;
+                continue;
+            }
+            other => { panic!("unexpected character in fen: {}", other); }
+        }
+        i += 1;
+    }
+
+    result
 }
 
 
