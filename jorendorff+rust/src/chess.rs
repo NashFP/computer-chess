@@ -46,8 +46,8 @@ pub struct Chessboard {
 impl ChessColor {
     fn flip(self) -> ChessColor {
         match self {
-            ChessColor::White => ChessColor::Black,
-            ChessColor::Black => ChessColor::White
+            White => Black,
+            Black => White
         }
     }
 }
@@ -594,10 +594,10 @@ impl Chessboard {
     ///
     fn square_is_threatened_by(&self, square: u64, color: ChessColor) -> bool {
         let (attackers, defenders, square_is_attacked_by_pawn) = match color {
-            ChessColor::White => (&self.white, &self.black,
-                                  square_is_attacked_by_white_pawn(square, self.white.pawns)),
-            ChessColor::Black => (&self.black, &self.white,
-                                  square_is_attacked_by_black_pawn(square, self.black.pawns))
+            White => (&self.white, &self.black,
+                      square_is_attacked_by_white_pawn(square, self.white.pawns)),
+            Black => (&self.black, &self.white,
+                      square_is_attacked_by_black_pawn(square, self.black.pawns))
         };
         let all_pieces = attackers.all() | defenders.all();
 
@@ -634,7 +634,7 @@ impl Chessboard {
         let pawn_capture_dirs;
         let castles;
         match self.whose_turn {
-            ChessColor::White => {
+            White => {
                 friendly = &self.white;
                 enemy_pieces = self.black.all();
                 pawn_home_row = RANK_2;
@@ -643,7 +643,7 @@ impl Chessboard {
                 pawn_capture_dirs = WHITE_PAWN_CAPTURE_DIRS;
                 castles = WHITE_CASTLES;
             }
-            ChessColor::Black => {
+            Black => {
                 friendly = &self.black;
                 enemy_pieces = self.white.all();
                 pawn_home_row = RANK_7;
@@ -767,8 +767,8 @@ impl Chessboard {
         let g1 = self.apply_move(m);
         let me = self.whose_turn;
         let my_king = match me {
-            ChessColor::White => g1.white.king,
-            ChessColor::Black => g1.black.king
+            White => g1.white.king,
+            Black => g1.black.king
         };
         g1.square_is_threatened_by(my_king, me.flip())
     }
@@ -786,8 +786,8 @@ impl Chessboard {
 
         let (friends, enemies, forward_shift, castle_k_spots, castle_q_spots) =
             match self.whose_turn {
-                ChessColor::White => (&self.white, &self.black,    8, 0x00000000_00000090, 0x00000000_00000011),
-                ChessColor::Black => (&self.black, &self.white, 64-8, 0x90000000_00000000, 0x11000000_00000000)
+                White => (&self.white, &self.black,    8, 0x00000000_00000090, 0x00000000_00000011),
+                Black => (&self.black, &self.white, 64-8, 0x90000000_00000000, 0x11000000_00000000)
             };
 
         // Remove an enemy piece if capturing.
@@ -851,12 +851,12 @@ impl Chessboard {
             };
 
         match self.whose_turn {
-            ChessColor::White => Chessboard {
-                white: friends_mod, black: enemies_mod, whose_turn: ChessColor::Black,
+            White => Chessboard {
+                white: friends_mod, black: enemies_mod, whose_turn: Black,
                 en_passant: en_passant_mod
             },
-            ChessColor::Black => Chessboard {
-                white: enemies_mod, black: friends_mod, whose_turn: ChessColor::White,
+            Black => Chessboard {
+                white: enemies_mod, black: friends_mod, whose_turn: White,
                 en_passant: en_passant_mod
             }
         }
@@ -882,7 +882,7 @@ const STARTING_BOARD : Chessboard = Chessboard {
         castle_k: true,
         castle_q: true
     },
-    whose_turn: ChessColor::White,
+    whose_turn: White,
     en_passant: 0
 };
 
@@ -901,8 +901,8 @@ impl Game for Chessboard {
 
     fn score_finished_game(&self) -> f64 {
         let side = match self.whose_turn {
-            ChessColor::White => self.white,
-            ChessColor::Black => self.black
+            White => self.white,
+            Black => self.black
         };
         if self.square_is_threatened_by(side.king, self.whose_turn.flip()) { 1.0 } else { 0.0 }
     }
@@ -926,19 +926,20 @@ impl Game for Chessboard {
             Black => -diff
         }
     }
+
+
+    // Next I gave all the pieces values.
+    fn heuristic2(board: &Chessboard) -> f64 {
+        let diff = 0.00001 * material_advantage_for_white(board) as f64;
+        match board.whose_turn {
+            White => diff,
+            Black => -diff
+        }
+    }
 */
 
-// Next I gave all the pieces values.
-fn heuristic2(board: &Chessboard) -> f64 {
-    let diff = 0.00001 * material_advantage_for_white(board);
-    match board.whose_turn {
-        White => diff,
-        Black => -diff
-    }
-}
-
-fn material_advantage_for_white(board: &Chessboard) -> f64 {
-    fn total(side: &Side) -> f64{
+fn material_advantage_for_white(board: &Chessboard) -> i32 {
+    fn total(side: &Side) -> i32 {
         // The scores here are from Wikipedia, which lists a dozen or more
         // scoring systems to choose from. This one is credited to Hans Berliner.
         //
@@ -946,64 +947,81 @@ fn material_advantage_for_white(board: &Chessboard) -> f64 {
         // as a bishop and a rook. For speed, we do not bother eliminating queens
         // when counting the number of bishops/rooks, but rather count queens as
         // both bishops and rooks, and then add a bit *more*...
-        (100 * side.pawns.count_ones() +
-         320 * side.knights.count_ones() +
-         333 * side.bishops.count_ones() +
-         510 * side.rooks.count_ones() +
-          37 * (side.bishops & side.rooks).count_ones()) as f64
+        100 * side.pawns.count_ones() as i32 +
+        320 * side.knights.count_ones() as i32 +
+        333 * side.bishops.count_ones() as i32 +
+        510 * side.rooks.count_ones() as i32 +
+         37 * (side.bishops & side.rooks).count_ones() as i32
     }
 
     return total(&board.white) - total(&board.black);
 }
 
+fn sum<I: Iterator<Item=u32>>(mut i: I) -> u32 {
+    let mut total = 0;
+    for v in i {
+        total += v;
+    }
+    total
+}
+
+fn mobility_advantage_for_white(board: &Chessboard) -> i32 {
+    fn moves_and_protects_along_ray<D: Dir>(all_pieces: u64, square: u64) -> u64 {
+        let ray = D::smear(D::shift(square));
+        let shadow = D::smear(D::shift(all_pieces & ray));
+        ray & !shadow
+    }
+
+    let all_pieces = board.white.all() | board.black.all();
+
+    let mobility = |side: &Side| -> i32 {
+        let rook_mobility = sum(split_bits(side.rooks).map(|square| {
+            (moves_and_protects_along_ray::<East>(all_pieces, square) |
+             moves_and_protects_along_ray::<North>(all_pieces, square) |
+             moves_and_protects_along_ray::<West>(all_pieces, square) |
+             moves_and_protects_along_ray::<South>(all_pieces, square)).count_ones()
+        }));
+
+        let bishop_mobility = sum(split_bits(side.bishops).map(|square| {
+            (moves_and_protects_along_ray::<Northeast>(all_pieces, square) |
+             moves_and_protects_along_ray::<Northwest>(all_pieces, square) |
+             moves_and_protects_along_ray::<Southwest>(all_pieces, square) |
+             moves_and_protects_along_ray::<Southeast>(all_pieces, square)).count_ones()
+        }));
+
+        let knight_mobility = sum(split_bits(side.knights).map(|square| {
+            if square & 0xffc38181_8181c3ff != 0 {              // 2 3 4 4 4 4 3 2
+                if square & 0x81000000_00000081 != 0 {          // 3 4 6 6 6 6 4 3
+                    2                                           // 4 6 8 8 8 8 6 4
+                } else if square & 0x42810000_00008142 != 0 {   // 4 6 8 8 8 8 6 4
+                    3                                           // 4 6 8 8 8 8 6 4
+                } else {                                        // 4 6 8 8 8 8 6 4
+                    4                                           // 3 4 6 6 6 6 4 3
+                }                                               // 2 3 4 4 4 4 3 2
+            } else if square & 0x00003c3c_3c3c0000 != 0 {
+                8
+            } else {
+                6
+            }
+        }));
+
+        (rook_mobility + bishop_mobility + knight_mobility) as i32
+    };
+    mobility(&board.white) - mobility(&board.black)
+}
+
+// Next, for each piece, give its side a small bonus for the number of squares it
+// attacks, and for each friendly piece it protects.
+fn heuristic3(board: &Chessboard) -> f64 {
+    let diff = 0.00000001 * (1000 * material_advantage_for_white(board) +
+                             mobility_advantage_for_white(board)) as f64;
+    match board.whose_turn {
+        White => -diff,
+        Black => diff
+    }
+}
+
 /*
-
--- Now, for each piece, give its side a small bonus for the number of squares it
--- attacks, and for each friendly piece it protects.
-heuristic3 g =
-  let
-    diff = 0.00000001 * fromIntegral (1000 * materialAdvantageForWhite g
-                                      + mobilityAdvantageForWhite g)
-  in case whoseTurn g of
-       White -> -diff
-       Black -> diff
-
-mobilityAdvantageForWhite g =
-  let
-    w = white g
-    b = black g
-    allPieces = wholeSuite w .|. wholeSuite b
-
-    {-# INLINE movesAndProtectsAlongRay #-}
-    movesAndProtectsAlongRay shiftDir smearDir square =
-      let ray = smearDir (shiftDir square)
-          shadow = smearDir (shiftDir (allPieces .&. ray))
-      in ray .&. complement shadow
-    rookMobility square = popCount $
-      movesAndProtectsAlongRay shiftE smearE square
-      .|. movesAndProtectsAlongRay shiftN smearN square
-      .|. movesAndProtectsAlongRay shiftW smearW square
-      .|. movesAndProtectsAlongRay shiftS smearS square
-    bishopMobility square = popCount $
-          movesAndProtectsAlongRay shiftNE smearNE square
-      .|. movesAndProtectsAlongRay shiftNW smearNW square
-      .|. movesAndProtectsAlongRay shiftSW smearSW square
-      .|. movesAndProtectsAlongRay shiftSE smearSE square
-    knightMobility square =
-      if square .&. 0xffc381818181c3ff /= 0            -- 2 3 4 4 4 4 3 2
-      then if square .&. 0x8100000000000081 /= 0       -- 3 4 6 6 6 6 4 3
-           then 2                                      -- 4 6 8 8 8 8 6 4
-           else if square .&. 0x4281000000008142 /= 0  -- 4 6 8 8 8 8 6 4
-                then 3                                 -- 4 6 8 8 8 8 6 4
-                else 4                                 -- 4 6 8 8 8 8 6 4
-      else if square .&. 0x00003c3c3c3c0000 /= 0       -- 3 4 6 6 6 6 4 3
-           then 8                                      -- 2 3 4 4 4 4 3 2
-           else 6
-    mobility side =
-        (sum $ map rookMobility $ splitBits $ rooks side)
-      + (sum $ map bishopMobility $ splitBits $ bishops side)
-      + (sum $ map knightMobility $ splitBits $ knights side)
-  in mobility w - mobility b
 
 -- Now, add some points for pawns attacking and defending other pieces.
 heuristic g =
@@ -1051,5 +1069,5 @@ chessAI = bestMoveWithPresortAndDepthLimit presortMoves heuristic 2
 */
 
 pub fn ai(board: &Chessboard) -> ChessMove {
-    best_move_with_depth_limit(&heuristic2, 2, board)
+    best_move_with_depth_limit(&heuristic3, 2, board)
 }
