@@ -41,7 +41,7 @@ defmodule Game do
   def main(args) do
     case args do
       ["auto"|_] -> auto
-      # _          -> start
+      ["text"|_] -> start
       _          -> XBoard.start
     end
   end
