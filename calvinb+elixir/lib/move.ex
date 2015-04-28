@@ -12,4 +12,8 @@ defmodule Move do
       false -> {:error, :invalid_format}
     end
   end
+
+  def to_string(%Move{from: from, to: to}) do
+    Square.to_string(from) <> Square.to_string(to)
+  end
 end

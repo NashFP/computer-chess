@@ -1,5 +1,5 @@
 defmodule Piece do
-  defstruct color: nil, type: nil, square: nil
+  defstruct color: nil, type: nil, square: nil, has_moved: false
 
   defp all_directions do
     (for x <- -1..1, y <- -1..1, do: {x, y})
@@ -36,12 +36,13 @@ defmodule Piece do
   end
 
   def parse(string) do
-    [[_, color, type, file_rank]] = Regex.scan ~r/([BW])(.)([a-h][1-8])/, string
+    [[_, color, type, file_rank, has_moved]] = Regex.scan ~r/([BW])(.)([a-h][1-8])([+-]?)/, string
 
     %Piece{
       color: parse_color(color),
       type: String.to_existing_atom(type),
-      square: Square.parse(file_rank)
+      square: Square.parse(file_rank),
+      has_moved: has_moved == "+"
     }
   end
 
