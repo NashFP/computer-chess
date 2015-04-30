@@ -1,7 +1,7 @@
 defmodule Board do
   def alpha_beta(board, color, depth), do: alpha_beta(board, color, -999999, 999999, depth)
 
-  defp alpha_beta(board, color, _, _, 0), do: evaluate(board, color, 0)
+  defp alpha_beta(board, color, _, _, 0), do: evaluate(board, color)
 
   defp alpha_beta(board, color, alpha, beta, depth_left) do
     moves = get_safe_moves_for_color(color, board)
@@ -75,7 +75,7 @@ defmodule Board do
     |> Enum.sum
   end
 
-  def evaluate(board, color, 0) do
+  def evaluate(board, color) do
     lead_by_pieces = [
       {:K, 200},
       {:Q, 9},
@@ -111,9 +111,25 @@ defmodule Board do
     |> List.first
   end
 
+  defp finish_castling(board, king = %Piece{square: %Square{file: :b}}) do
+    move(board, %Move{from: %Square{file: :a, rank: king.square.rank}, 
+                      to:   %Square{file: :c, rank: king.square.rank}})
+  end
+
+  defp finish_castling(board, king = %Piece{square: %Square{file: :g}}) do
+    move(board, %Move{from: %Square{file: :h, rank: king.square.rank}, 
+                      to:   %Square{file: :f, rank: king.square.rank}})
+  end
+
   def get_best_move_for_color(color, board) do
     search_root(board, color, 2)
   end
+
+  defp get_castling_targets(board, king = %Piece{type: :K, has_moved: false}) do
+    Enum.concat(maybe_castle_left(board, king), maybe_castle_right(board, king))
+  end
+
+  defp get_castling_targets(_, _), do: []
 
   defp get_long_targets(directions, piece, board) do
     directions
@@ -187,6 +203,7 @@ defmodule Board do
 
     Piece.get_moves(piece)
     |> f.(piece, board)
+    |> Enum.concat(get_castling_targets(board, piece))
   end
 
   def has_color_at?(square, color, board) do
@@ -194,6 +211,16 @@ defmodule Board do
       nil         -> false
       other_piece -> other_piece.color == color
     end
+  end
+
+  defp has_unmoved_rook?(board, color, file) do
+    is_unmoved_rook? = fn(piece) ->
+      case piece do
+        %Piece{type: :R, color: ^color, square: %Square{file: ^file}, has_moved: false} -> true
+        _ -> false
+      end
+    end
+    Enum.any?(board, is_unmoved_rook?)
   end
 
   # No ? on name because it's not a predicate; returns Square or nil, not Boolean
@@ -282,11 +309,48 @@ defmodule Board do
     end
   end
 
+  defp maybe_castle_left(board, king = %Piece{type: :K, has_moved: false}) do
+    spot_empty? = fn(file) ->
+      piece_on(%Square{file: file, rank: king.square.rank}, board) == nil
+    end
+
+    path_clear = Enum.all?([:b, :c, :d], spot_empty?)
+    has_rook = has_unmoved_rook?(board, king.color, :a)
+
+    case path_clear and has_rook do
+      true -> [%Square{file: :b, rank: king.square.rank}]
+      false -> []
+    end
+  end
+
+  defp maybe_castle_right(board, king = %Piece{type: :K, has_moved: false}) do
+    spot_empty? = fn(file) ->
+      piece_on(%Square{file: file, rank: king.square.rank}, board) == nil
+    end
+
+    path_clear = Enum.all?([:f, :g], spot_empty?)
+
+    case path_clear and has_unmoved_rook?(board, king.color, :h) do
+      true -> [%Square{file: :g, rank: king.square.rank}]
+      false -> []
+    end
+  end
+
+  defp maybe_finish_castling(board, from_to) do
+    case piece_on(from_to.to, board) do
+      king = %Piece{type: :K} ->
+        case Square.file_diff(from_to.from, from_to.to) > 1 do
+          true  -> finish_castling(board, king)
+          false -> board
+        end
+      _ -> board
+    end
+  end
+
   defp maybe_move_piece(piece, move) do
-    if piece.square == move.from do
-      %{piece | square: move.to}
-    else
-      piece
+    case piece.square == move.from do
+      true  -> move_piece_to(piece, move.to)
+      false -> piece
     end
   end
 
@@ -296,6 +360,19 @@ defmodule Board do
     board
     |> Enum.reject(&(&1 == captured))
     |> Enum.map(&maybe_move_piece(&1, from_to))
+    |> maybe_finish_castling(from_to)
+  end
+
+  defp move_piece_to(piece = %Piece{type: :P, color: :black}, square = %Square{rank: 1}) do
+    %{piece | square: square, has_moved: true, type: :Q}
+  end
+
+  defp move_piece_to(piece = %Piece{type: :P, color: :white}, square = %Square{rank: 8}) do
+    %{piece | square: square, has_moved: true, type: :Q}
+  end
+
+  defp move_piece_to(piece, square) do
+    %{piece | square: square, has_moved: true}
   end
 
   def new do
@@ -379,25 +456,34 @@ defmodule Board do
 
   defp search_root(board, color, depth) do
     moves = get_safe_moves_for_color(color, board)
+    search_root(board, color, depth, moves)
+  end
+
+  defp search_root(board, color, depth, moves) do
     {alpha, beta} = {-999999, 999999}
 
-    {_, _, final_best_move} =
-      List.foldl(moves, {alpha, false, {:error, :checkmate}},
-        fn(m, {cur_alpha, cutting_off, cur_best_move}) ->
+    {_, _, final_scored_moves} =
+      List.foldl(moves, {alpha, false, []},
+        fn(m, {cur_alpha, cutting_off, scored_moves}) ->
           case cutting_off do
-            true  -> {cur_alpha, true, cur_best_move}
+            true  -> {cur_alpha, true, [{m, -999999}|scored_moves]}
             false ->
               new_board = move(board, m)
               score = -alpha_beta(new_board, other_color(color), -beta, -cur_alpha, depth - 1)
+              new_scored_moves = [{m, score}|scored_moves]
               cond do
-                score >= beta     -> {cur_alpha, true, cur_best_move}
-                score > cur_alpha -> {score, false, m}
-                true              -> {cur_alpha, false, cur_best_move}
+                score >= beta     -> {cur_alpha, true, new_scored_moves}
+                score > cur_alpha -> {score, false, new_scored_moves}
+                true              -> {cur_alpha, false, new_scored_moves}
               end
           end
         end)
 
-    final_best_move
+    {best_move, _} = final_scored_moves
+    |> Enum.sort_by(fn({_, score}) -> score end)
+    |> List.last
+
+    best_move
   end
 
   defp starting_pawn_rank(:black), do: 7

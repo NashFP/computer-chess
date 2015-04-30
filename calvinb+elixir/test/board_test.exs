@@ -40,14 +40,21 @@ defmodule BoardTest do
     board = [Piece.parse("WPa2"), Piece.parse("WRa1")]
     {:ok, move} = Move.parse("a2a4")
     new_board = Board.move(board, move)
-    assert new_board == [Piece.parse("WPa4"), Piece.parse("WRa1")]
+    assert new_board == [Piece.parse("WPa4+"), Piece.parse("WRa1")]
   end
 
   test "capture move should remove piece" do
     board = [Piece.parse("WPd4"), Piece.parse("BPe5")]
     {:ok, move} = Move.parse("d4e5")
     new_board = Board.move(board, move)
-    assert new_board == [Piece.parse("WPe5")]
+    assert new_board == [Piece.parse("WPe5+")]
+  end
+
+  test "castling should move king and rook" do
+    board = Board.parse("WRa1 WKe1")
+    {:ok, move} = Move.parse("e1b1")
+    new_board = Board.move(board, move)
+    assert new_board == Board.parse("WRc1+ WKb1+")
   end
 
   test "review move should complain when no piece on starting square" do
@@ -285,6 +292,22 @@ defmodule BoardTest do
     assert targets == ["d1", "d2", "e2", "f1", "f2"] |> Enum.map(&Square.parse/1)
   end
 
+  test "should include long castling in king targets" do
+    rook = Piece.parse("WRa1")
+    king = Piece.parse("WKe1")
+    board = [rook, king]
+    targets = Board.get_targets(king, board)
+    assert List.last(targets) == Square.parse("b1")
+  end
+
+  test "should include short castling in king targets" do
+    rook = Piece.parse("WRh1")
+    king = Piece.parse("WKe1")
+    board = [rook, king]
+    targets = Board.get_targets(king, board)
+    assert List.last(targets) == Square.parse("g1")
+  end
+
   test "get lead by type" do
     board = Board.parse("WPa2 WPb2 BPa7")
     lead = Board.lead_by_type(board, :P, :white)
@@ -293,12 +316,27 @@ defmodule BoardTest do
 
   test "should initially evaluate to 0" do
     board = Board.new
-    value = Board.evaluate(board, :white, 0)
+    value = Board.evaluate(board, :white)
     assert value == value
   end
   
   test "should get alpha-beta without error" do
     board = Board.new
     _ = Board.alpha_beta(board, :white, 1)
+  end
+
+  test "should queen white pawn" do
+    board = Board.parse("WPa7")
+    {:ok, move} = Move.parse("a7a8")
+    new_board = Board.move(board, move)
+    assert new_board == Board.parse("WQa8+")
+  end
+
+  test "should update has_moved when moving piece" do
+    piece = Piece.parse("WRa1")
+    board = [piece]
+    {:ok, move} = Move.parse("a1a2")
+    [new_piece] = Board.move(board, move)
+    assert new_piece.has_moved == true
   end
 end

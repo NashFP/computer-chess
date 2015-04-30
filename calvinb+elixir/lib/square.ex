@@ -11,6 +11,12 @@ defmodule Square do
     end
   end
 
+  def file_diff(square1, square2) do
+    int1 = square1.file |> to_char_list |> List.first
+    int2 = square2.file |> to_char_list |> List.first
+    abs(int1 - int2)
+  end
+
   def move(nil, _), do: nil
 
   def move(square = %Square{}, {dx, dy}) do
@@ -30,5 +36,9 @@ defmodule Square do
       file: string |> String.slice(0, 1) |> String.to_existing_atom,
       rank: string |> String.slice(1, 1) |> String.to_integer
     }
+  end
+
+  def to_string(%Square{file: file, rank: rank}) do
+    "#{file}#{rank}"
   end
 end
