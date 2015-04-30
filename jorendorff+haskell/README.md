@@ -62,6 +62,7 @@ that you would like confirmed, let me know.
 
 Want to play against the computer?
 
+    cabal install parallel
     make play
 
 If you happen to have [xboard](https://www.gnu.org/software/xboard/) installed,
