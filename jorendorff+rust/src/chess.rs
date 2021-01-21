@@ -78,19 +78,19 @@ impl Chessboard {
     fn funny_mark_at(&self, col: u8, row: u8) -> char {
         let bit = 1u64 << (8 * row + col);
         match self.white.piece_at(bit) {
-            Some(ChessPiece::King)   => 'K',
-            Some(ChessPiece::Queen)  => 'Q',
-            Some(ChessPiece::Rook)   => 'R',
-            Some(ChessPiece::Bishop) => 'B',
-            Some(ChessPiece::Knight) => 'N',
-            Some(ChessPiece::Pawn)   => 'P',
+            Some(ChessPiece::King)   => '♔',
+            Some(ChessPiece::Queen)  => '♕',
+            Some(ChessPiece::Rook)   => '♖',
+            Some(ChessPiece::Bishop) => '♗',
+            Some(ChessPiece::Knight) => '♘',
+            Some(ChessPiece::Pawn)   => '♙',
             None => match self.black.piece_at(bit) {
-                Some(ChessPiece::King)   => 'k',
-                Some(ChessPiece::Queen)  => 'q',
-                Some(ChessPiece::Rook)   => 'r',
-                Some(ChessPiece::Bishop) => 'b',
-                Some(ChessPiece::Knight) => 'n',
-                Some(ChessPiece::Pawn)   => 'p',
+                Some(ChessPiece::King)   => '♚',
+                Some(ChessPiece::Queen)  => '♛',
+                Some(ChessPiece::Rook)   => '♜',
+                Some(ChessPiece::Bishop) => '♝',
+                Some(ChessPiece::Knight) => '♞',
+                Some(ChessPiece::Pawn)   => '♟',
                 None => '.'
             }
         }
