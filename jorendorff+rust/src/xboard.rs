@@ -107,42 +107,42 @@ impl<F: Fn(&Chessboard) -> ChessMove> XBoard<F> {
                 self.board = Chessboard::start();
                 self.force_mode = false;
             } else if command == "protover" {
-                try!(self.respond("feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1"));
+                self.respond("feature variants=\"normal\" usermove=1 draw=0 analyze=0 colors=0 setboard=1 sigint=0 done=1")?;
             } else if command == "quit" {
                 return Ok(());
             } else if command == "force" {
                 self.force_mode = true;
             } else if command == "setboard" {
-                try!(self.say(&arguments));
+                self.say(&arguments)?;
                 self.board = fen_to_board(arguments);
                 let s = format!("{:?}", self.board);
-                try!(self.say(&s));
+                self.say(&s)?;
             } else if command == "go" {
                 self.force_mode = false;
-                try!(self.go());
+                self.go()?;
                 let s = format!("{:?}", self.board);
-                try!(self.say(&s));
+                self.say(&s)?;
             } else if command == "usermove" {
                 match try_move(&self.board, arguments) {
-                    MoveError(msg) => try!(self.respond(&msg)),
-                    GameOver(msg) => try!(self.respond(&msg)),
+                    MoveError(msg) => self.respond(&msg)?,
+                    GameOver(msg) => self.respond(&msg)?,
                     Continue(board) => {
                         self.board = board;
                         if !self.force_mode {
-                            try!(self.go());
+                            self.go()?;
                         }
                     }
                 }
                 let s = format!("{:?}", self.board);
-                try!(self.say(&s));
+                self.say(&s)?;
             } else {
-                try!(self.respond(&format!("Error: (unknown command): {}", this_line)));
+                self.respond(&format!("Error: (unknown command): {}", this_line))?;
             }
         }
     }
 }
 
 pub fn play_xboard<F: Fn(&Chessboard) -> ChessMove>(ai: F) -> std::io::Result<()> {
-    let mut state = try!(XBoard::<F>::new(ai));
+    let mut state = XBoard::<F>::new(ai)?;
     state.play()
 }

@@ -12,10 +12,10 @@ fn input_one_of<T>(options: &[T], prompt: &str) -> std::io::Result<Option<T>> wh
     T : Copy + Debug + FromStr + PartialEq
 {
     loop {
-        try!(stdout().write(prompt.as_bytes()));
-        try!(stdout().flush());
+        stdout().write(prompt.as_bytes())?;
+        stdout().flush()?;
         let mut line_buf = String::new();
-        try!(stdin().read_line(&mut line_buf));
+        stdin().read_line(&mut line_buf)?;
         if line_buf.len() == 0 {
             return Ok(None);  // user typed the EOF key, treat it like "q"
         }

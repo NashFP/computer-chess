@@ -277,8 +277,8 @@ fn bit_to_str(b: u64) -> String {
 
 impl Debug for ChessMove {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
-        try!(f.write_str(&bit_to_str(self.from)));
-        try!(f.write_str(&bit_to_str(self.to)));
+        f.write_str(&bit_to_str(self.from))?;
+        f.write_str(&bit_to_str(self.to))?;
         match self.promote_to {
             None => Ok(()),
             Some(piece) => f.write_str(match piece {
