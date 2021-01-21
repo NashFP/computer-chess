@@ -1,14 +1,18 @@
 # Computer Chess
-A functional programming playground for computer chess
 
-##Background
+A functional programming playground for computer chess.
+
+## Background
+
 On Monday, March 23, 2015 at 7PM the movie "[Computer Chess](http://www.belcourt.org/events/computer-chess.653869)" will play at Nashville's historic [Belcourt Theater](http://www.belcourt.org/) as part of their "[Science on Screen](http://www.belcourt.org/events/science-on-screen-connecting-cinematic-art-with-hard-science.1380736)" series.
 
 >"Set in 1980 in a nondescript hotel, COMPUTER CHESS follows several young geniuses as they try to make the ultimate chess program to beat a human player."
 
 Field trip! 
 
-##This repo
+
+## This repo
+
 Writing a chess game (_or a portion of a chess game_) in your functional language of choice. 
 
 1. Fork this repo. 
@@ -20,13 +24,14 @@ Writing a chess game (_or a portion of a chess game_) in your functional languag
 
 Game on!
 
-##Helpful links
+## Helpful links
 
-Amber Adams (@amberadams) pointed out two very helpful resources  
+Amber Adams (@amberadams) pointed out two very helpful resources.
+
 > Here are the five major problems you'll need to solve in your program:
 > http://www.gamedev.net/page/resources/_/technical/artificial-intelligence/chess-programming-part-i-getting-started-r1014
 >
 > And here's the community wiki, for some additional resources and things not to do if you want your program to be respected: https://chessprogramming.wikispaces.com
-> 
+
 
 Nice!
