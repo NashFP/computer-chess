@@ -84,8 +84,8 @@ pub struct Othello {
 impl Debug for Othello {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         let mut buf = String::new();
-        for y in (0 .. SIZE) {
-            for x in (0 .. SIZE) {
+        for y in 0..SIZE {
+            for x in 0..SIZE {
                 buf.push(match self.board[y][x] {
                     Square::Black => 'X',
                     Square::White => 'O',
@@ -98,7 +98,7 @@ impl Debug for Othello {
             buf.push('\n');
         }
 
-        for x in (0 .. SIZE) {
+        for x in 0..SIZE {
             buf.push_str(&COL_LETTERS[x .. x + 1]);
             buf.push(' ');
         }
@@ -173,8 +173,8 @@ impl Othello {
 
     fn capturing_moves(&self) -> Vec<OthelloMove> {
         let mut v = Vec::new();
-        for y in (0..SIZE as i32) {
-            for x in (0..SIZE as i32) {
+        for y in 0..SIZE as i32 {
+            for x in 0..SIZE as i32 {
                 if self.board[y as usize][x as usize] == Square::Empty &&
                         self.can_capture_at((x, y)) {
                     v.push(OthelloMove::MoveAt(x, y));
@@ -189,8 +189,8 @@ impl Othello {
         let me = flip(you);
         let mut yours = 0i32;
         let mut mine = 0i32;
-        for y in (0..SIZE) {
-            for x in (0..SIZE) {
+        for y in 0..SIZE {
+            for x in 0..SIZE {
                 let sq = self.board[y][x];
                 if      sq == you { yours += 1; }
                 else if sq == me  { mine += 1; }

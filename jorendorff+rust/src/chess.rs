@@ -292,21 +292,8 @@ impl Debug for ChessMove {
     }
 }
 
-pub fn chars_to_col_row(chars: &[char]) -> (u8, u8) {
-    let mut iter = chars.iter();
-    let &c = iter.next().expect("chars_to_col_row: empty input");
-    let &r = iter.next().expect("chars_to_col_row: only one character of input");
-    if iter.next().is_some() {
-        panic!("chars_to_col_row: more than 2 characters of input");
-    }
-    let uc = c as u32 - COL_LETTERS[0] as u32;
-    assert!(uc < 8);
-    let ur = r as u32 - ROW_DIGITS[0] as u32;
-    assert!(ur < 8);
-    (uc as u8, ur as u8)
-}
-
 pub fn chars_to_bit(c: char, r: char) -> Option<u64> {
+    // TODO: make this code not die on overflow
     let uc = c as u32 - COL_LETTERS[0] as u32;
     let ur = r as u32 - ROW_DIGITS[0] as u32;
     if uc < 8 && ur < 8 {

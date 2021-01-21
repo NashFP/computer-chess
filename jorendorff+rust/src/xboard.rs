@@ -1,7 +1,6 @@
 // *** xboard.rs: Support for GNU XBoard **************************************
 
 use std;
-use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
 use chess::*;
@@ -51,22 +50,22 @@ struct XBoard<F: Fn(&Chessboard) -> ChessMove> {
 
 impl<F: Fn(&Chessboard) -> ChessMove> XBoard<F> {
     fn say(&mut self, s: &str) -> std::io::Result<()> {
-        try!(writeln!(&mut self.log, "{}", s));
-        try!(self.log.flush());
+        writeln!(&mut self.log, "{}", s)?;
+        self.log.flush()?;
         Ok(())
     }
 
     fn respond(&mut self, s: &str) -> std::io::Result<()> {
         println!("{}", s);
-        try!(std::io::stdout().flush());
-        try!(writeln!(&mut self.log, "<-- {}", s));
-        try!(self.log.flush());
+        std::io::stdout().flush()?;
+        writeln!(&mut self.log, "<-- {}", s)?;
+        self.log.flush()?;
         Ok(())
     }
 
     fn go(&mut self) -> std::io::Result<()> {
         let m = (self.ai)(&self.board);
-        try!(self.respond(&format!("move {:?}", m)));
+        self.respond(&format!("move {:?}", m))?;
         self.board = self.board.apply_move(m);
         Ok(())
     }
@@ -76,14 +75,14 @@ impl<F: Fn(&Chessboard) -> ChessMove> XBoard<F> {
             ai: ai,
             board: Chessboard::start(),
             force_mode: true,
-            log: try!(std::fs::OpenOptions::new().write(true).create(true).open("xboard-input.txt")),
+            log: std::fs::OpenOptions::new().write(true).create(true).open("xboard-input.txt")?,
         })
     }
 
     fn play(&mut self) -> std::io::Result<()> {
         loop {
             let mut this_line = String::new();
-            try!(std::io::stdin().read_line(&mut this_line));
+            std::io::stdin().read_line(&mut this_line)?;
 
             this_line = this_line.trim_matches('\n').to_string();
 
@@ -92,7 +91,7 @@ impl<F: Fn(&Chessboard) -> ChessMove> XBoard<F> {
                 Some(command) => command
             };
 
-            try!(self.say(&format!("--> {}", this_line)));
+            self.say(&format!("--> {}", this_line))?;
 
             let arguments =
                 if command.len() + 1 >= this_line.len() {
