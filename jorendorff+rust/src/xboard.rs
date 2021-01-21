@@ -1,18 +1,17 @@
 // *** xboard.rs: Support for GNU XBoard **************************************
 
-use std;
 use std::io::prelude::*;
 use std::str::FromStr;
-use chess::*;
-use chess::ChessColor::*;
-use minimax::Game;
+use crate::chess::*;
+use crate::chess::ChessColor::*;
+use crate::minimax::Game;
 
 enum MoveResult {
     MoveError(String),
     GameOver(String),
     Continue(Chessboard)
 }
-use xboard::MoveResult::*;
+use MoveResult::*;
 
 fn try_move(board: &Chessboard, str: &str) -> MoveResult {
     let m = match ChessMove::from_str(str) {

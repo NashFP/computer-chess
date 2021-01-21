@@ -1,12 +1,10 @@
 // *** othello.rs: the game of Othello ****************************************
 
-use std;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::ops::Add;
 use std::str::FromStr;
-use minimax::Game;
-use minimax::best_move_with_depth_limit;
+use crate::minimax::{Game, best_move_with_depth_limit};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
@@ -32,7 +30,7 @@ const ROW_DIGITS : &'static str = "12345678";
 const COL_LETTERS : &'static str = "abcdefgh";
 
 impl Debug for OthelloMove {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match *self {
             OthelloMove::Pass => f.write_str("pass"),
             OthelloMove::MoveAt(x, y) => f.write_str(&(COL_LETTERS[x as usize .. x as usize + 1].to_string() +
@@ -82,7 +80,7 @@ pub struct Othello {
 }
 
 impl Debug for Othello {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut buf = String::new();
         for y in 0..SIZE {
             for x in 0..SIZE {

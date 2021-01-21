@@ -8,7 +8,7 @@ pub trait Game : Clone {
 
     fn start() -> Self;
     fn moves(&self) -> Vec<Self::Move>;
-    fn apply_move(&self, Self::Move) -> Self;
+    fn apply_move(&self, m: Self::Move) -> Self;
 
     // Returns >0.0 if the last move won the game, 0.0 for a draw.
     fn score_finished_game(&self) -> f64;

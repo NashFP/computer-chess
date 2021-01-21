@@ -1,3 +1,5 @@
+#![warn(rust_2018_idioms)]
+
 mod minimax;
 mod interactive_play;
 mod pennies;
@@ -6,14 +8,16 @@ mod othello;
 mod chess;
 mod xboard;
 
-use interactive_play::play_human_vs_computer;
-use xboard::play_xboard;
-use minimax::Game;
-use minimax::best_move;
-use pennies::Pennies;
-use fifteen::Fifteen;
-use othello::Othello;
-use chess::Chessboard;
+use crate::{
+    interactive_play::play_human_vs_computer,
+    xboard::play_xboard,
+    minimax::Game,
+    minimax::best_move,
+    pennies::Pennies,
+    fifteen::Fifteen,
+    othello::Othello,
+    chess::Chessboard,
+};
 
 #[derive(PartialEq)]
 enum GameId { Pennies, Fifteen, Othello, Chess }

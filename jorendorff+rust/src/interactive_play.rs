@@ -1,12 +1,11 @@
 // *** interactive_play.rs: Command-line play vs. a computer opponent *********
 
 use std::fmt::Debug;
-use std;
 use std::io::Write;
 use std::io::stdin;
 use std::io::stdout;
 use std::str::FromStr;
-use minimax::Game;
+use crate::minimax::Game;
 
 fn input_one_of<T>(options: &[T], prompt: &str) -> std::io::Result<Option<T>> where
     T : Copy + Debug + FromStr + PartialEq

@@ -1,13 +1,12 @@
 // *** chess.rs: this little game maybe you've heard of it ********************
 
-use std;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::ops::Range;
 use std::str::FromStr;
 
-use minimax::Game;
-use minimax::best_move_with_depth_limit;
+use crate::minimax::Game;
+use crate::minimax::best_move_with_depth_limit;
 
 
 // *** Game state structs *****************************************************
@@ -15,7 +14,7 @@ use minimax::best_move_with_depth_limit;
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ChessColor { White, Black }
 
-use chess::ChessColor::*;
+use ChessColor::*;
 
 #[derive(Clone, Copy)]
 pub struct Side {
@@ -110,7 +109,7 @@ const COL_LETTERS : &'static [char] = &['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ROW_DIGITS  : &'static [char] = &['1', '2', '3', '4', '5', '6', '7', '8'];
 
 impl Debug for Chessboard {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.write_str(&(
             concat(RANGE.rev().map(|r| {
                 let mut s = String::new();
@@ -276,7 +275,7 @@ fn bit_to_str(b: u64) -> String {
 }
 
 impl Debug for ChessMove {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.write_str(&bit_to_str(self.from))?;
         f.write_str(&bit_to_str(self.to))?;
         match self.promote_to {

@@ -1,9 +1,8 @@
 // *** fifteen.rs: the game of Fifteen ****************************************
 
-use std;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use minimax::Game;
+use crate::minimax::Game;
 
 #[derive(Clone, Copy)]
 struct BitSet16(u16);
@@ -31,7 +30,7 @@ impl BitSet16 {
 }
 
 impl Debug for BitSet16 {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         (0..16).filter(|i| self.has(*i)).collect::<Vec<i32>>().fmt(f)
     }
 }

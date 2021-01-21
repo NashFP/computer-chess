@@ -1,6 +1,6 @@
 // *** pennies.rs: the game of Pennies ****************************************
 
-use minimax::Game;
+use crate::minimax::Game;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pennies(i32);
