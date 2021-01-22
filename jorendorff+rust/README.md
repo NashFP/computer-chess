@@ -14,7 +14,7 @@ Or, if you have GNU XBoard (`brew install xboard`):
 xboard -fcp 'cargo run --release -- --xboard'
 ```
 
-This is a straight-up port of the Haskell program in [../jorendorff+haskell]().
+This is a straight-up port of the Haskell program in [../jorendorff+haskell](../jorendorff+haskell).
 It's functionally identical;
 the two programs make the same moves, given the same circumstances.
 
